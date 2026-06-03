@@ -1,5 +1,9 @@
 # create-ekko-agent
 
+[![npm](https://img.shields.io/npm/v/create-ekko-agent.svg)](https://www.npmjs.com/package/create-ekko-agent)
+[![downloads](https://img.shields.io/npm/dm/create-ekko-agent.svg)](https://www.npmjs.com/package/create-ekko-agent)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jfeilberg/ekko/blob/main/LICENSE)
+
 Scaffold a Slack-native AI agent in one command.
 
 ```bash

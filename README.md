@@ -1,5 +1,9 @@
 # Ekko
 
+[![npm](https://img.shields.io/npm/v/create-ekko-agent.svg?label=create-ekko-agent)](https://www.npmjs.com/package/create-ekko-agent)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](https://nodejs.org)
+
 A Slack-native AI agent template. Built on Vercel's Chat SDK + AI SDK, with Composio for 1000+ OAuth-brokered tools, MCP server support, custom tools as a first-class extension point, and Postgres pgvector memory. Deployable in minutes.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjfeilberg%2Fekko&env=COMPOSIO_API_KEY,SLACK_BOT_TOKEN,SLACK_SIGNING_SECRET&envDescription=See%20.env.example%20for%20all%20variables.%20Neon%20%26%20Upstash%20can%20be%20added%20as%20Vercel%20integrations%20after%20first%20deploy.&envLink=https%3A%2F%2Fgithub.com%2Fjfeilberg%2Fekko%2Fblob%2Fmain%2F.env.example)

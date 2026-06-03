@@ -179,7 +179,7 @@ async function main() {
   // ---- Step 2: Slack config token + create app ----
   ui.step(2, 7, 'Create Slack app');
   ui.info('Generate a config token at: https://api.slack.com/apps');
-  ui.info('(Click "Generate Token" near the top of the page, in a workspace where Ekko will live)');
+  ui.info('Scroll to the bottom of the page → "Your App Configuration Tokens" → "Generate Token" for the workspace where Ekko will live.');
   console.log();
   const configToken = (await ask('Paste config token (xoxe...): ')).trim();
   if (!configToken.startsWith('xoxe.')) abort('That does not look like a config token.');
@@ -249,8 +249,8 @@ async function main() {
         reject(new Error('No code in callback'));
         return;
       }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<h1>✓ Installed. Return to your terminal.</h1>');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Installed — Ekko</title><style>html,body{margin:0;height:100%}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d9488;color:#fff;display:flex;align-items:center;justify-content:center}.card{text-align:center;padding:3rem}.check{font-size:5rem;line-height:1;margin-bottom:1rem;animation:pop .35s ease-out}@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}h1{margin:0 0 .5rem;font-weight:600;font-size:1.5rem;letter-spacing:-.01em}p{margin:0;opacity:.88;font-size:1rem}</style></head><body><div class="card"><div class="check">✓</div><h1>Installed</h1><p>Return to your terminal — Ekko is finishing setup.</p></div></body></html>`);
       server.close();
       resolve(c);
     });
@@ -295,6 +295,7 @@ async function main() {
   }
 
   // ---- Step 6: Composio (optional) — not counted as a numbered step ----
+  let composioConfigured = false;
   console.log();
   ui.say(c.dim('Optional: Composio for 1000+ tools (Gmail, Linear, Notion, etc.)'));
   const wantComposio = (await ask('Connect Composio? (Y/n) ')).trim().toLowerCase();
@@ -306,6 +307,7 @@ async function main() {
       try {
         await setVercelEnv('COMPOSIO_API_KEY', k);
         s.stop('COMPOSIO_API_KEY set');
+        composioConfigured = true;
       } catch (err) {
         s.fail('Failed to write COMPOSIO_API_KEY');
         throw err;
@@ -331,9 +333,11 @@ async function main() {
 
   // ---- Step 7: Apply migrations ----
   ui.step(7, 7, 'Apply schema migrations');
-  // Pull the latest env (including DATABASE_URL) into .env.local so db-push.mjs can read it.
+  // Pull production env (DATABASE_URL is only set on production by the Neon
+  // Marketplace integration; without --environment=production we'd download
+  // the development env which lacks DATABASE_URL, and db-push would error out).
   await new Promise((resolve) => {
-    const pull = spawnVercel(['env', 'pull', '.env.local', '--yes'], { cwd: projectRoot, stdio: 'inherit' });
+    const pull = spawnVercel(['env', 'pull', '.env.local', '--environment=production', '--yes'], { cwd: projectRoot, stdio: 'inherit' });
     pull.on('close', resolve);
   });
   await new Promise((resolve, reject) => {
@@ -392,6 +396,9 @@ async function main() {
   // ---- Welcome DM to the installer ----
   if (installerId) {
     const dmSpinner = spinner('Sending welcome DM…');
+    const toolsLine = composioConfigured
+      ? 'You\'ve plugged in a Composio API key — head to <https://dashboard.composio.dev> and *connect the toolkits you want* (Gmail, Linear, Notion, …). I pick them up automatically on the next turn — no redeploy needed.'
+      : 'To unlock 1000+ tools (Gmail, Linear, Notion, …), grab an API key at <https://dashboard.composio.dev> and add it as `COMPOSIO_API_KEY` to your Vercel env. Then connect the toolkits you want from the same dashboard.';
     const welcomeText = [
       '👋 *Welcome to Ekko!*',
       '',
@@ -400,7 +407,7 @@ async function main() {
       '• @-mention me in any channel I\'m invited to',
       '• Open the Assistant view (sidebar) for a dedicated thread',
       '',
-      'To unlock 1000+ tools (Gmail, Linear, Notion, etc.), connect them at <https://dashboard.composio.dev>.',
+      toolsLine,
       '',
       'Try saying hi 👋',
     ].join('\n');
@@ -444,9 +451,6 @@ async function main() {
   }
 
   console.log();
-  ui.info('Next: open Slack → search "Ekko" → DM the bot.');
-  console.log();
-
   rl.close();
 }
 

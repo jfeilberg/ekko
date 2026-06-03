@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.6] — 2026-06-03
+
+- **Fix (critical)**: `vercel env pull` in the post-deploy step ran without `--environment=production`, so it downloaded the development env which lacks `DATABASE_URL`. The migration runner then errored out, leaving the deployed bot with no schema applied — first DM crashes inside `ensureSlackUser`. Now pulls production explicitly.
+- **UX**: Slack welcome DM is now Composio-aware. If you supplied a Composio API key during setup, the DM tells you to connect toolkits at the dashboard (instead of telling you to "get an API key" you already have). If you didn't, it walks you through both steps.
+- **UX**: OAuth browser success page is no longer a bare `<h1>` — proper on-brand teal page with animated check ("Installed — Return to your terminal").
+- **Copy fix**: Slack config token instruction now correctly says "scroll to the bottom of the page" (previously said "near the top").
+- **Polish**: removed the trailing `Next: open Slack → search "Ekko" → DM the bot.` — already in the `Setup complete!` summary above it.
+
 ## [0.1.5] — 2026-06-03
 
 - **Fix (critical)**: `create-ekko-agent` was eagerly creating a readline interface at module load — even when `projectName` was given as argv and no prompt was needed. The unused readline still disturbed `process.stdin`, so when `pnpm bootstrap` ran as a child and tried to read its own "Continue?" prompt, stdin returned EOF immediately and bootstrap exited silently after the banner. Switched to lazy-init readline (only created if `ask()` is actually called). Bootstrap's prompts now receive user input as expected.

@@ -352,25 +352,24 @@ async function main() {
   });
 
   // ---- Resolve stable alias for the Slack manifest ----
-  // `vercel deploy --prod` prints the deploy-specific URL (immutable, won't
-  // receive future deploys). The Slack manifest needs the *stable* alias so
-  // events keep landing on the latest production deploy. We ask Vercel directly
-  // via `vercel inspect` — guessing `<projectName>.vercel.app` is unreliable for
-  // common project names (the subdomain is often taken globally, so Vercel
-  // suffixes the project's actual alias).
+  // The Slack manifest needs the stable alias so events keep landing on the
+  // latest production deploy. Detection via `vercel inspect` is reliable in
+  // practice — we only prompt the user as a fallback if it fails.
   const projectJson = JSON.parse(readFileSync(path.join(projectRoot, '.vercel/project.json'), 'utf-8'));
   console.log();
   const aliasSpinner = spinner('Detecting production alias…');
   const detectedAlias = await getProductionAlias(prodUrl);
+  let stableUrl;
   if (detectedAlias) {
-    aliasSpinner.stop(`Detected alias: ${detectedAlias}`);
+    aliasSpinner.stop(`Using ${detectedAlias} for the Slack manifest`);
+    stableUrl = detectedAlias;
   } else {
-    aliasSpinner.fail('Could not detect alias from `vercel inspect` — falling back to a guess');
+    aliasSpinner.fail('Could not detect alias via `vercel inspect`');
+    const fallback = projectJson.projectName ? `https://${projectJson.projectName}.vercel.app` : prodUrl;
+    ui.info(`Falling back to: ${fallback}`);
+    const aliasInput = (await ask('Press Enter to accept, or paste a custom domain: ')).trim();
+    stableUrl = aliasInput || fallback;
   }
-  const defaultAlias = detectedAlias
-    || (projectJson.projectName ? `https://${projectJson.projectName}.vercel.app` : prodUrl);
-  const aliasInput = (await ask('Press Enter to accept, or paste a custom domain (e.g. https://bot.example.com): ')).trim();
-  const stableUrl = aliasInput || defaultAlias;
 
   console.log();
   const manifestSpinner = spinner('Updating Slack manifest…');
@@ -397,8 +396,8 @@ async function main() {
   if (installerId) {
     const dmSpinner = spinner('Sending welcome DM…');
     const toolsLine = composioConfigured
-      ? 'You\'ve plugged in a Composio API key — head to <https://dashboard.composio.dev> and *connect the toolkits you want* (Gmail, Linear, Notion, …). I pick them up automatically on the next turn — no redeploy needed.'
-      : 'To unlock 1000+ tools (Gmail, Linear, Notion, …), grab an API key at <https://dashboard.composio.dev> and add it as `COMPOSIO_API_KEY` to your Vercel env. Then connect the toolkits you want from the same dashboard.';
+      ? 'Composio is plugged in 🔌. To connect any toolkit (Gmail, Linear, Notion, …), *just ask me* — e.g. "connect Gmail" or "connect Linear" — and I\'ll generate a one-click authorization link tied to *your* Slack user. (Connecting via dashboard.composio.dev directly will bind to a different identity and I won\'t see it.)'
+      : 'To unlock 1000+ external tools, grab a Composio API key at <https://dashboard.composio.dev>, add it as `COMPOSIO_API_KEY` to your Vercel env, and redeploy. Then just ask me to connect what you need.';
     const welcomeText = [
       '👋 *Welcome to Ekko!*',
       '',

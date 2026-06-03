@@ -4,6 +4,12 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.7] — 2026-06-03
+
+- **UX**: `npx create-ekko-agent` (no args) now defaults to `my-ekko-agent` instead of prompting.
+- **UX**: when `vercel inspect` detects the production alias (the common case), bootstrap uses it silently — no more "Press Enter to accept" friction. The prompt only appears as a fallback when detection fails.
+- **UX (important)**: welcome DM and `onAssistantThreadStarted` no longer direct users to `dashboard.composio.dev` to connect tools. They now correctly explain that users should *ask the bot* — "connect Gmail" / "connect Linear" — so the bot can generate an auth link scoped to the user's Slack identity. Connecting via the dashboard binds to a different Composio entity and the bot can't see it (real gotcha that confused at least one tester).
+
 ## [0.1.6] — 2026-06-03
 
 - **Fix (critical)**: `vercel env pull` in the post-deploy step ran without `--environment=production`, so it downloaded the development env which lacks `DATABASE_URL`. The migration runner then errored out, leaving the deployed bot with no schema applied — first DM crashes inside `ensureSlackUser`. Now pulls production explicitly.

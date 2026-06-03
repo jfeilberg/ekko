@@ -121,16 +121,9 @@ async function main() {
     ui.info('vercel CLI not on PATH — using `npx vercel` (downloads on first use).');
   }
 
-  // Project name (arg or prompt)
-  let projectName = process.argv[2];
-  if (!projectName) {
-    projectName = (await ask('Project name (e.g. my-agent): ')).trim();
-  }
-  if (!projectName) {
-    ui.err('Project name required.');
-    closeReadline();
-    process.exit(1);
-  }
+  // Project name: argv first, default to `my-ekko-agent` if not given (no prompt
+  // — the user can pass their own as the first arg if they want).
+  const projectName = (process.argv[2] || 'my-ekko-agent').trim();
   if (!/^[a-z0-9][a-z0-9-_]*$/i.test(projectName)) {
     ui.err(`Invalid project name "${projectName}". Use letters, numbers, hyphens, underscores.`);
     closeReadline();

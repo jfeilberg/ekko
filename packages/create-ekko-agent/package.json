@@ -1,0 +1,23 @@
+{
+  "name": "create-ekko-agent",
+  "version": "0.1.0",
+  "description": "Scaffold a Slack-native AI agent in one command.",
+  "type": "module",
+  "bin": {
+    "create-ekko-agent": "./index.js"
+  },
+  "files": ["index.js", "README.md"],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": ["slack", "ai", "agent", "vercel", "claude", "template", "scaffold"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jfeilberg/ekko.git",
+    "directory": "packages/create-ekko-agent"
+  },
+  "homepage": "https://github.com/jfeilberg/ekko",
+  "bugs": "https://github.com/jfeilberg/ekko/issues",
+  "license": "MIT",
+  "author": "Jonathan R. Feilberg"
+}

@@ -1,0 +1,71 @@
+# Personal forks: set the UPSTREAM_REPO repo variable to <owner>/<repo> to enable
+# weekly sync PRs from the upstream template. Conflicts open an issue instead.
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync:
+    if: vars.UPSTREAM_REPO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream "https://github.com/${{ vars.UPSTREAM_REPO }}.git"
+
+      - name: Fetch upstream
+        run: git fetch upstream main
+
+      - name: Create sync branch
+        id: branch
+        run: |
+          BRANCH="upstream-sync-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream/main
+        id: merge
+        continue-on-error: true
+        run: git merge --no-edit upstream/main
+
+      - name: Push and open PR
+        if: steps.merge.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # No-op if there are no new commits from upstream.
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
+            echo "No upstream changes to sync."
+            exit 0
+          fi
+          git push origin "${{ steps.branch.outputs.name }}"
+          gh pr create \
+            --title "Sync from upstream ($(date +%Y-%m-%d))" \
+            --body "Auto-generated weekly sync from \`${{ vars.UPSTREAM_REPO }}\`. Review the diff, ensure CI passes, then merge. If your customizations live only in the documented extension points (\`lib/tools/custom/\`, \`lib/agent/persona.ts\`), this should be a clean merge." \
+            --base main \
+            --head "${{ steps.branch.outputs.name }}"
+
+      - name: Open issue on conflict
+        if: steps.merge.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Upstream sync conflict ($(date +%Y-%m-%d))" \
+            --body "The weekly sync from \`${{ vars.UPSTREAM_REPO }}\` could not auto-merge. Resolve manually: \`\`\`git fetch upstream && git checkout -b upstream-sync-manual && git merge upstream/main\`\`\`"

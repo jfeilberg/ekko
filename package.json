@@ -1,0 +1,50 @@
+{
+  "name": "ekko",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:push": "node scripts/db-push.mjs",
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "publish:create-ekko-agent": "cd packages/create-ekko-agent && npm publish --access public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vercel/config": "^0.5.1",
+    "@vitest/coverage-v8": "^4.1.7",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "@ai-sdk/gateway": "^3.0.121",
+    "@chat-adapter/slack": "^4.29.0",
+    "@chat-adapter/state-memory": "^4.29.0",
+    "@chat-adapter/state-redis": "^4.29.0",
+    "@composio/core": "^0.10.0",
+    "@composio/vercel": "^0.9.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@slack/web-api": "^7.16.0",
+    "ai": "^6.0.192",
+    "chat": "^4.29.0",
+    "next": "^16.2.6",
+    "pino": "^10.3.1",
+    "postgres": "^3.4.5",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  }
+}

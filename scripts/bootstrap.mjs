@@ -26,7 +26,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
 const rl = readline.createInterface({ input: stdin, output: stdout });
-const ask = (q) => rl.question(q);
+// Every interactive prompt is prefixed with ❯ so the user can distinguish
+// "waiting on you" from "running/loading." Critical UX cue when sandwiched
+// between spinners and background CLI output.
+const ask = (q) => rl.question(`  ${styleText('cyan', '❯')} ${q}`);
 
 // ---- UI helpers ----
 
@@ -68,26 +71,24 @@ const ui = {
 
 function spinner(label) {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  const start = Date.now();
   let i = 0;
   let active = true;
   const id = setInterval(() => {
     if (!active) return;
-    process.stdout.write(`\r  ${c.primary(frames[i])} ${label}`);
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const time = elapsed >= 1 ? c.dim(` (${elapsed}s)`) : '';
+    process.stdout.write(`\r  ${c.primary(frames[i])} ${label}${time}`);
     i = (i + 1) % frames.length;
   }, 80);
+  const clear = () => {
+    active = false;
+    clearInterval(id);
+    process.stdout.write(`\r${' '.repeat(label.length + 16)}\r`);
+  };
   return {
-    stop(finalMsg) {
-      active = false;
-      clearInterval(id);
-      process.stdout.write(`\r${' '.repeat(label.length + 6)}\r`);
-      if (finalMsg) ui.ok(finalMsg);
-    },
-    fail(finalMsg) {
-      active = false;
-      clearInterval(id);
-      process.stdout.write(`\r${' '.repeat(label.length + 6)}\r`);
-      if (finalMsg) ui.err(finalMsg);
-    },
+    stop(finalMsg) { clear(); if (finalMsg) ui.ok(finalMsg); },
+    fail(finalMsg) { clear(); if (finalMsg) ui.err(finalMsg); },
   };
 }
 
@@ -121,6 +122,8 @@ async function main() {
   // Verify .vercel/project.json exists; if missing, run `vercel link` interactively.
   if (!existsSync(path.join(projectRoot, '.vercel/project.json'))) {
     ui.warn('Not linked to a Vercel project. Running `vercel link`…');
+    ui.info('Vercel will ask 3–4 questions (scope, link-or-create, project name).');
+    ui.info('Press Enter to accept defaults each time.');
     console.log();
     await new Promise((resolve, reject) => {
       const p = spawnVercel(['link'], { cwd: projectRoot, stdio: 'inherit' });
@@ -487,16 +490,16 @@ function tryVercelIntegrationAdd(slug) {
 
 function setVercelEnv(key, value) {
   return new Promise((resolve, reject) => {
-    // Remove existing (idempotent) then add. Both production target.
-    const rm = spawnVercel(['env', 'rm', key, 'production', '-y'], { cwd: projectRoot, stdio: 'ignore' });
-    rm.on('close', () => {
-      const add = spawnVercel(['env', 'add', key, 'production'], {
-        cwd: projectRoot, stdio: ['pipe', 'ignore', 'ignore'],
-      });
-      add.stdin.write(value + '\n');
-      add.stdin.end();
-      add.on('close', (code) => code === 0 ? resolve() : reject(new Error(`vercel env add ${key} exited ${code}`)));
-    });
+    // Use `--value` (documented non-interactive path) + `--force` (overwrite
+    // existing) + `--yes` (skip the post-add confirmation prompt). The previous
+    // stdin-pipe approach silently wrote empty strings on some setups because
+    // vercel CLI's TTY-style prompts dropped the piped value.
+    const proc = spawnVercel(
+      ['env', 'add', key, 'production', '--value', value, '--force', '--yes'],
+      { cwd: projectRoot, stdio: ['ignore', 'ignore', 'ignore'] },
+    );
+    proc.on('close', (code) => code === 0 ? resolve() : reject(new Error(`vercel env add ${key} exited ${code}`)));
+    proc.on('error', reject);
   });
 }
 

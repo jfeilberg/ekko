@@ -4,6 +4,13 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.4] — 2026-06-03
+
+- **Fix (critical)**: `setVercelEnv` was piping values via stdin to `vercel env add`, which silently dropped the value on some setups — env vars saved as empty strings. Now uses the documented non-interactive path: `vercel env add KEY production --value <V> --force --yes`. Surfaced when a fresh setup ended up with empty `SLACK_BOT_TOKEN`, leaving the bot unable to authenticate to Slack.
+- **UX**: every interactive prompt is now prefixed with `❯ ` (cyan) so the user can distinguish "waiting on you" from "loading."
+- **UX**: spinner messages now display elapsed seconds — `Provisioning Neon… (12s)` — so you can tell still-working from hung.
+- **UX**: pre-flight explainer before `vercel link` ("Vercel will ask 3–4 questions, press Enter to accept defaults") in both `pnpm bootstrap` and `create-ekko-agent`.
+
 ## [0.1.3] — 2026-06-03
 
 - **Fix**: bootstrap now detects the actual production alias via `vercel inspect` instead of guessing `<projectName>.vercel.app`. For projects with common names (e.g. `janitor`), the bare subdomain is often already taken globally — Vercel suffixes the project's real alias (e.g. `janitor-nu.vercel.app`). The wrong-URL bug caused the Slack manifest to point at a stranger's deployment, breaking event delivery to the bot.

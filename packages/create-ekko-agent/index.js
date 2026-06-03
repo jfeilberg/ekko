@@ -19,7 +19,9 @@ import { styleText } from 'node:util';
 const TEMPLATE_REPO = 'jfeilberg/ekko';
 
 const rl = readline.createInterface({ input: stdin, output: stdout });
-const ask = (q) => rl.question(q);
+// Every prompt is prefixed with ❯ so the user can distinguish "waiting on you"
+// from "running/loading."
+const ask = (q) => rl.question(`  ${styleText('cyan', '❯')} ${q}`);
 
 // ---- UI helpers ----
 
@@ -61,26 +63,24 @@ const ui = {
 
 function spinner(label) {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  const start = Date.now();
   let i = 0;
   let active = true;
   const id = setInterval(() => {
     if (!active) return;
-    process.stdout.write(`\r  ${c.primary(frames[i])} ${label}`);
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const time = elapsed >= 1 ? c.dim(` (${elapsed}s)`) : '';
+    process.stdout.write(`\r  ${c.primary(frames[i])} ${label}${time}`);
     i = (i + 1) % frames.length;
   }, 80);
+  const clear = () => {
+    active = false;
+    clearInterval(id);
+    process.stdout.write(`\r${' '.repeat(label.length + 16)}\r`);
+  };
   return {
-    stop(finalMsg) {
-      active = false;
-      clearInterval(id);
-      process.stdout.write(`\r${' '.repeat(label.length + 6)}\r`);
-      if (finalMsg) ui.ok(finalMsg);
-    },
-    fail(finalMsg) {
-      active = false;
-      clearInterval(id);
-      process.stdout.write(`\r${' '.repeat(label.length + 6)}\r`);
-      if (finalMsg) ui.err(finalMsg);
-    },
+    stop(finalMsg) { clear(); if (finalMsg) ui.ok(finalMsg); },
+    fail(finalMsg) { clear(); if (finalMsg) ui.err(finalMsg); },
   };
 }
 
@@ -160,7 +160,8 @@ async function main() {
 
   // Step 3: vercel link
   ui.step(3, 4, 'Linking to Vercel');
-  ui.info('Sign in if prompted.');
+  ui.info('Vercel will ask 3–4 questions (scope, link-or-create, project name).');
+  ui.info('Press Enter to accept defaults each time. Sign in if prompted.');
   await run(VERCEL[0], [...VERCEL.slice(1), 'link'], { cwd: targetDir });
 
   // Step 4: bootstrap

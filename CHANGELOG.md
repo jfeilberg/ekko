@@ -4,6 +4,11 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.2] — 2026-06-03
+
+- **Fix**: `create-ekko-agent` and `pnpm bootstrap` now auto-fall-back to `npx -y vercel` when the `vercel` CLI is not on `PATH` (e.g., after a fresh `npm i -g vercel` in a shell that hasn't refreshed yet). First invocation downloads vercel once; subsequent calls hit the npm cache.
+- Vercel CLI is no longer a hard prerequisite — only pnpm is required up front.
+
 ## [0.1.1] — 2026-06-03
 
 - README badges (npm version, license, Node engines) on the public repo and the `create-ekko-agent` package page.

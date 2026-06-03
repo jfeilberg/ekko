@@ -110,9 +110,12 @@ async function main() {
   ui.say(c.dim('Prerequisites: vercel CLI logged in. Slack workspace where you can install apps.'));
   console.log();
 
-  // Verify vercel CLI is on PATH (else every CLI spawn below would die with ENOENT).
-  if (!(await which('vercel'))) {
-    abort('Vercel CLI not found. Install with `npm i -g vercel`, then `vercel login`.');
+  // Auto-detect vercel CLI. If not on PATH, fall back to `npx -y vercel` — handles
+  // the "just ran `npm i -g vercel` but the shell hasn't refreshed PATH" case
+  // gracefully (open-new-terminal / hash -r is the manual workaround).
+  VERCEL = (await which('vercel')) ? ['vercel'] : ['npx', '-y', 'vercel'];
+  if (VERCEL[0] === 'npx') {
+    ui.info('vercel CLI not on PATH — using `npx vercel` (downloads on first use).');
   }
 
   // Verify .vercel/project.json exists; if missing, run `vercel link` interactively.
@@ -120,7 +123,7 @@ async function main() {
     ui.warn('Not linked to a Vercel project. Running `vercel link`…');
     console.log();
     await new Promise((resolve, reject) => {
-      const p = spawn('vercel', ['link'], { cwd: projectRoot, stdio: 'inherit' });
+      const p = spawnVercel(['link'], { cwd: projectRoot, stdio: 'inherit' });
       p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('vercel link failed'))));
       p.on('error', reject);
     });
@@ -327,7 +330,7 @@ async function main() {
   ui.step(7, 7, 'Apply schema migrations');
   // Pull the latest env (including DATABASE_URL) into .env.local so db-push.mjs can read it.
   await new Promise((resolve) => {
-    const pull = spawn('vercel', ['env', 'pull', '.env.local', '--yes'], { cwd: projectRoot, stdio: 'inherit' });
+    const pull = spawnVercel(['env', 'pull', '.env.local', '--yes'], { cwd: projectRoot, stdio: 'inherit' });
     pull.on('close', resolve);
   });
   await new Promise((resolve, reject) => {
@@ -442,9 +445,15 @@ function which(cmd) {
   });
 }
 
+// Set by main() after PATH detection: either ['vercel'] or ['npx', '-y', 'vercel'].
+let VERCEL = ['vercel'];
+function spawnVercel(args, opts) {
+  return spawn(VERCEL[0], [...VERCEL.slice(1), ...args], opts);
+}
+
 function vercelEnvExists(key) {
   return new Promise((resolve) => {
-    const ls = spawn('vercel', ['env', 'ls', 'production'], { cwd: projectRoot, stdio: ['ignore', 'pipe', 'ignore'] });
+    const ls = spawnVercel(['env', 'ls', 'production'], { cwd: projectRoot, stdio: ['ignore', 'pipe', 'ignore'] });
     let out = '';
     ls.stdout.on('data', (chunk) => { out += chunk.toString(); });
     ls.on('close', () => resolve(out.includes(key)));
@@ -457,7 +466,7 @@ function vercelEnvExists(key) {
  */
 function tryVercelIntegrationAdd(slug) {
   return new Promise((resolve) => {
-    const p = spawn('vercel', ['integration', 'add', slug, '--environment', 'production'], {
+    const p = spawnVercel(['integration', 'add', slug, '--environment', 'production'], {
       cwd: projectRoot,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
@@ -469,9 +478,9 @@ function tryVercelIntegrationAdd(slug) {
 function setVercelEnv(key, value) {
   return new Promise((resolve, reject) => {
     // Remove existing (idempotent) then add. Both production target.
-    const rm = spawn('vercel', ['env', 'rm', key, 'production', '-y'], { cwd: projectRoot, stdio: 'ignore' });
+    const rm = spawnVercel(['env', 'rm', key, 'production', '-y'], { cwd: projectRoot, stdio: 'ignore' });
     rm.on('close', () => {
-      const add = spawn('vercel', ['env', 'add', key, 'production'], {
+      const add = spawnVercel(['env', 'add', key, 'production'], {
         cwd: projectRoot, stdio: ['pipe', 'ignore', 'ignore'],
       });
       add.stdin.write(value + '\n');
@@ -483,7 +492,7 @@ function setVercelEnv(key, value) {
 
 function deployAndCaptureUrl() {
   return new Promise((resolve, reject) => {
-    const proc = spawn('vercel', ['deploy', '--prod', '--yes'], { cwd: projectRoot });
+    const proc = spawnVercel(['deploy', '--prod', '--yes'], { cwd: projectRoot });
     let buf = '';
     proc.stdout.on('data', (chunk) => {
       const s = chunk.toString();

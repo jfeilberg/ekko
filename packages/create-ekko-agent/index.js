@@ -103,17 +103,17 @@ function which(cmd) {
 async function main() {
   ui.banner('create-ekko-agent', 'Slack-native AI agent template');
 
-  // Prerequisite check
-  const missing = [];
-  if (!(await which('pnpm'))) missing.push('pnpm (https://pnpm.io/installation)');
-  if (!(await which('vercel'))) missing.push('vercel CLI (`npm i -g vercel`)');
-  if (missing.length) {
-    ui.err('Missing prerequisites:');
-    for (const m of missing) ui.info(`- ${m}`);
-    console.log();
-    ui.warn('Install the above and re-run.');
+  // pnpm is a hard prerequisite — vercel CLI is auto-fetched via npx if missing,
+  // which gracefully handles the "just installed vercel globally but PATH hasn't
+  // refreshed yet" case (open new terminal / `hash -r` is the manual workaround).
+  if (!(await which('pnpm'))) {
+    ui.err('pnpm not found. Install it from https://pnpm.io/installation and re-run.');
     rl.close();
     process.exit(1);
+  }
+  const VERCEL = (await which('vercel')) ? ['vercel'] : ['npx', '-y', 'vercel'];
+  if (VERCEL[0] === 'npx') {
+    ui.info('vercel CLI not on PATH — using `npx vercel` (downloads on first use).');
   }
 
   // Project name (arg or prompt)
@@ -161,7 +161,7 @@ async function main() {
   // Step 3: vercel link
   ui.step(3, 4, 'Linking to Vercel');
   ui.info('Sign in if prompted.');
-  await run('vercel', ['link'], { cwd: targetDir });
+  await run(VERCEL[0], [...VERCEL.slice(1), 'link'], { cwd: targetDir });
 
   // Step 4: bootstrap
   ui.step(4, 4, 'Setup (Slack + deploy)');

@@ -18,10 +18,15 @@ import { styleText } from 'node:util';
 
 const TEMPLATE_REPO = 'jfeilberg/ekko';
 
-const rl = readline.createInterface({ input: stdin, output: stdout });
-// Every prompt is prefixed with ❯ so the user can distinguish "waiting on you"
-// from "running/loading."
-const ask = (q) => rl.question(`  ${styleText('cyan', '❯')} ${q}`);
+// Lazy-init readline. When projectName is given as argv, ask() is never called,
+// readline never opens, stdin is untouched — critical so the child `pnpm bootstrap`
+// can read its own stdin prompts without seeing EOF.
+let rl = null;
+const ask = (q) => {
+  if (!rl) rl = readline.createInterface({ input: stdin, output: stdout });
+  return rl.question(`  ${styleText('cyan', '❯')} ${q}`);
+};
+const closeReadline = () => { if (rl) { rl.close(); rl = null; } };
 
 // ---- UI helpers ----
 
@@ -108,7 +113,7 @@ async function main() {
   // refreshed yet" case (open new terminal / `hash -r` is the manual workaround).
   if (!(await which('pnpm'))) {
     ui.err('pnpm not found. Install it from https://pnpm.io/installation and re-run.');
-    rl.close();
+    closeReadline();
     process.exit(1);
   }
   const VERCEL = (await which('vercel')) ? ['vercel'] : ['npx', '-y', 'vercel'];
@@ -123,19 +128,19 @@ async function main() {
   }
   if (!projectName) {
     ui.err('Project name required.');
-    rl.close();
+    closeReadline();
     process.exit(1);
   }
   if (!/^[a-z0-9][a-z0-9-_]*$/i.test(projectName)) {
     ui.err(`Invalid project name "${projectName}". Use letters, numbers, hyphens, underscores.`);
-    rl.close();
+    closeReadline();
     process.exit(1);
   }
 
   const targetDir = path.resolve(projectName);
   if (existsSync(targetDir)) {
     ui.err(`Directory ${targetDir} already exists.`);
-    rl.close();
+    closeReadline();
     process.exit(1);
   }
 
@@ -158,22 +163,23 @@ async function main() {
   ui.info('Installing… this may take a minute.');
   await run('pnpm', ['install'], { cwd: targetDir });
 
-  // Step 3: vercel link
+  // Step 3: vercel link (--yes skips the 4–6 default-accept prompts: code dir,
+  // modify settings, additional settings, etc. Sign in if prompted, otherwise
+  // the project is auto-created in your default Vercel scope.)
   ui.step(3, 4, 'Linking to Vercel');
-  ui.info('Vercel will ask 3–4 questions (scope, link-or-create, project name).');
-  ui.info('Press Enter to accept defaults each time. Sign in if prompted.');
-  await run(VERCEL[0], [...VERCEL.slice(1), 'link'], { cwd: targetDir });
+  ui.info('Auto-accepting defaults. (To use a non-default team, run `vercel switch <team>` first.)');
+  await run(VERCEL[0], [...VERCEL.slice(1), 'link', '--yes'], { cwd: targetDir });
 
-  // Step 4: bootstrap
+  // Step 4: bootstrap. We hand stdin off entirely — bootstrap prints its own
+  // "Setup complete!" + welcome DM + icon upload prompt, so we don't print a
+  // redundant final banner here.
   ui.step(4, 4, 'Setup (Slack + deploy)');
-  rl.close(); // bootstrap script owns stdin from here
+  closeReadline();
   await run('pnpm', ['bootstrap'], { cwd: targetDir });
-
-  ui.done('Ready.', [`cd into ${projectName}/ to customize further.`]);
 }
 
 main().catch((err) => {
   ui.err(err.message);
-  rl.close();
+  closeReadline();
   process.exit(1);
 });

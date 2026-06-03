@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.8] — 2026-06-03
+
+Streaming + dedup polish guided by the [chat-sdk skill](https://github.com/vercel-labs/chat-sdk) recommendations. All bot-side; new deployers and existing forks pick these up on next sync.
+
+- **UX**: `result.fullStream` instead of `result.textStream` when piping the agent output to Slack. Preserves step boundaries (text-delta / tool-call / tool-result / step-start / step-finish), so multi-tool runs render with proper separators instead of one continuous wall of text.
+- **UX**: `thread.startTyping()` surfaces Slack's native typing indicator twice — once when the turn starts (so the user sees "Ekko is typing…" during context loading) and once just before the stream begins (so it persists through the first-token latency).
+- **Reliability**: explicit `dedupeTtlMs: 600_000` on the `Chat` constructor. Slack retries events up to 3× in the first minute on non-200 acks, and Fluid Compute may route retries to a different instance; 10-minute dedup covers all of Slack's retry attempts comfortably across instances.
+
 ## [0.1.7] — 2026-06-03
 
 - **UX**: `npx create-ekko-agent` (no args) now defaults to `my-ekko-agent` instead of prompting.

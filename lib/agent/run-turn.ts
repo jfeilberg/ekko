@@ -52,6 +52,11 @@ export async function runTurn(input: TurnInput): Promise<void> {
   });
 
   try {
+    // Surface Slack's native typing indicator while context loads + agent runs.
+    // Slack stops it automatically when the next message posts; for the longer
+    // streaming flows we re-trigger it just before the stream below.
+    await thread.startTyping().catch(() => {});
+
     const [recallContext, composio, threadFetch] = await Promise.all([
       loadContext({ slackUserId, threadTs: thread.id, currentUserText: userText }).catch(() => ({
         summaries: [],
@@ -173,7 +178,13 @@ export async function runTurn(input: TurnInput): Promise<void> {
     });
 
     const result = await agent.stream({ messages });
-    await thread.post(result.textStream);
+    // Re-trigger typing right before streaming so the indicator persists
+    // through the model's first-token latency.
+    await thread.startTyping().catch(() => {});
+    // `fullStream` preserves step boundaries (text-delta, tool-call, tool-result,
+    // step-start/finish) so the Slack adapter renders multi-tool runs with
+    // proper separators instead of one mashed-together stream.
+    await thread.post(result.fullStream);
     const finalText = await result.text;
 
     // Mark the plan complete once the response is streamed.

@@ -164,6 +164,10 @@ export function getBot(): EkkoChat {
       }),
     },
     state: stateAdapter,
+    // Slack retries events up to 3× in the first minute on non-200 acks.
+    // With Fluid Compute, multiple instances may receive the same retry.
+    // 10 minutes covers all of Slack's retry attempts comfortably.
+    dedupeTtlMs: 600_000,
   });
   registerHandlers(chat);
   log.info({ state: e.REDIS_URL ? 'redis' : 'memory' }, 'ekko.boot');

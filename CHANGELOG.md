@@ -4,6 +4,10 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.3] — 2026-06-03
+
+- **Fix**: bootstrap now detects the actual production alias via `vercel inspect` instead of guessing `<projectName>.vercel.app`. For projects with common names (e.g. `janitor`), the bare subdomain is often already taken globally — Vercel suffixes the project's real alias (e.g. `janitor-nu.vercel.app`). The wrong-URL bug caused the Slack manifest to point at a stranger's deployment, breaking event delivery to the bot.
+
 ## [0.1.2] — 2026-06-03
 
 - **Fix**: `create-ekko-agent` and `pnpm bootstrap` now auto-fall-back to `npx -y vercel` when the `vercel` CLI is not on `PATH` (e.g., after a fresh `npm i -g vercel` in a shell that hasn't refreshed yet). First invocation downloads vercel once; subsequent calls hit the npm cache.

@@ -347,11 +347,21 @@ async function main() {
   // ---- Resolve stable alias for the Slack manifest ----
   // `vercel deploy --prod` prints the deploy-specific URL (immutable, won't
   // receive future deploys). The Slack manifest needs the *stable* alias so
-  // events keep landing on the latest production deploy.
+  // events keep landing on the latest production deploy. We ask Vercel directly
+  // via `vercel inspect` — guessing `<projectName>.vercel.app` is unreliable for
+  // common project names (the subdomain is often taken globally, so Vercel
+  // suffixes the project's actual alias).
   const projectJson = JSON.parse(readFileSync(path.join(projectRoot, '.vercel/project.json'), 'utf-8'));
-  const defaultAlias = projectJson.projectName ? `https://${projectJson.projectName}.vercel.app` : prodUrl;
   console.log();
-  ui.info(`Default stable alias: ${defaultAlias}`);
+  const aliasSpinner = spinner('Detecting production alias…');
+  const detectedAlias = await getProductionAlias(prodUrl);
+  if (detectedAlias) {
+    aliasSpinner.stop(`Detected alias: ${detectedAlias}`);
+  } else {
+    aliasSpinner.fail('Could not detect alias from `vercel inspect` — falling back to a guess');
+  }
+  const defaultAlias = detectedAlias
+    || (projectJson.projectName ? `https://${projectJson.projectName}.vercel.app` : prodUrl);
   const aliasInput = (await ask('Press Enter to accept, or paste a custom domain (e.g. https://bot.example.com): ')).trim();
   const stableUrl = aliasInput || defaultAlias;
 
@@ -487,6 +497,35 @@ function setVercelEnv(key, value) {
       add.stdin.end();
       add.on('close', (code) => code === 0 ? resolve() : reject(new Error(`vercel env add ${key} exited ${code}`)));
     });
+  });
+}
+
+/**
+ * Resolve the canonical production alias for a given deployment by parsing
+ * `vercel inspect <url>`. The shortest alias listed is typically the one
+ * Vercel auto-assigned (e.g. `myproject.vercel.app`, or `myproject-nu.vercel.app`
+ * when the bare subdomain is taken globally).
+ */
+function getProductionAlias(deployUrl) {
+  return new Promise((resolve) => {
+    const proc = spawnVercel(['inspect', deployUrl], {
+      cwd: projectRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let out = '';
+    proc.stdout.on('data', (c) => { out += c.toString(); });
+    proc.stderr.on('data', (c) => { out += c.toString(); });
+    proc.on('close', () => {
+      const aliasesIdx = out.indexOf('Aliases');
+      if (aliasesIdx === -1) return resolve(null);
+      const buildsIdx = out.indexOf('Builds', aliasesIdx);
+      const section = out.slice(aliasesIdx, buildsIdx === -1 ? out.length : buildsIdx);
+      const urls = [...section.matchAll(/https:\/\/[a-z0-9.-]+\.vercel\.app/g)].map((m) => m[0]);
+      if (!urls.length) return resolve(null);
+      urls.sort((a, b) => a.length - b.length);
+      resolve(urls[0]);
+    });
+    proc.on('error', () => resolve(null));
   });
 }
 

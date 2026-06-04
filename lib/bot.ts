@@ -105,17 +105,17 @@ function registerHandlers(chat: EkkoChat): void {
     const c = composioClient();
     if (c) {
       try {
-        const conns = await c.connectedAccounts.list({ userIds: [entityId] });
-        const seen = new Set<string>();
-        for (const item of (conns.items ?? [])) {
-          const slug = (item as { toolkit?: { slug?: string } }).toolkit?.slug;
-          if (slug && !seen.has(slug)) {
-            seen.add(slug);
-            connectedToolkits.push(slug);
-          }
-        }
+        // Tool Router's `session.toolkits()` returns toolkit-shaped data with
+        // an `isActive` connection flag — better-fit than `connectedAccounts.list`
+        // for "what does the user have available" semantics. Built for exactly
+        // this welcome/UI use case (per the composio skill's `tr-toolkit-query`).
+        const session = await c.create(entityId);
+        const result = await session.toolkits();
+        connectedToolkits = (result.items ?? [])
+          .filter((t) => t.connection?.isActive)
+          .map((t) => t.slug);
       } catch (err) {
-        log.warn({ err }, 'composio_list_connections_failed');
+        log.warn({ err }, 'composio_list_toolkits_failed');
       }
     }
 

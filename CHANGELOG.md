@@ -4,6 +4,13 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.9] — 2026-06-03
+
+Tier 2 chat-sdk + Composio skill polish.
+
+- **Composio**: `onAssistantThreadStarted` now derives connected toolkits via Tool Router's `session.toolkits()` (filtered by `connection.isActive`) instead of `connectedAccounts.list({ userIds: [...] })`. Cleaner toolkit-shaped data — the exact API the composio skill's `tr-toolkit-query` documents for this use case. Surfaces toolkits the user can actually use, not raw connection rows that need toolkit-slug deduplication on the consumer side.
+- **Observability**: every tool execution (Composio + MCP + custom + built-in, uniformly) now emits a structured pino log line with `{ tool, ok, latencyMs }` on success or `{ tool, err, latencyMs }` on failure. Added inside the existing per-tool wrapper in `run-turn.ts`, so it covers all four tool sources without touching the Composio modifier API — single instrumentation point.
+
 ## [0.1.8] — 2026-06-03
 
 Streaming + dedup polish guided by the [chat-sdk skill](https://github.com/vercel-labs/chat-sdk) recommendations. All bot-side; new deployers and existing forks pick these up on next sync.

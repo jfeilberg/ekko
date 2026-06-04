@@ -107,6 +107,7 @@ export async function runTurn(input: TurnInput): Promise<void> {
           } catch {
             /* tolerate — plan may not be bound yet */
           }
+          const t0 = Date.now();
           try {
             const result = await originalExecute(input, options);
             try {
@@ -114,6 +115,7 @@ export async function runTurn(input: TurnInput): Promise<void> {
             } catch {
               /* best effort */
             }
+            log.info({ tool: name, ok: true, latencyMs: Date.now() - t0 }, 'tool_call');
             return result;
           } catch (err) {
             try {
@@ -121,6 +123,7 @@ export async function runTurn(input: TurnInput): Promise<void> {
             } catch {
               /* best effort */
             }
+            log.warn({ tool: name, err, latencyMs: Date.now() - t0 }, 'tool_call_failed');
             throw err;
           }
         },

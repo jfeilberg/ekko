@@ -7,7 +7,7 @@ import { log } from './log';
 import { isAllowed, ACCESS_DENIED_MESSAGE } from './access';
 import { runTurn } from './agent/run-turn';
 import { getSuggestedPrompts } from './agent/suggested-prompts';
-import { composioClient } from './tools/composio';
+import { getComposioSession } from './tools/composio';
 import { ensureSlackUser } from './memory/store';
 
 type EkkoChat = Chat<{ slack: ReturnType<typeof createSlackAdapter> }>;
@@ -102,14 +102,14 @@ function registerHandlers(chat: EkkoChat): void {
     }
 
     let connectedToolkits: string[] = [];
-    const c = composioClient();
-    if (c) {
+    const session = await getComposioSession(entityId);
+    if (session) {
       try {
         // Tool Router's `session.toolkits()` returns toolkit-shaped data with
-        // an `isActive` connection flag — better-fit than `connectedAccounts.list`
-        // for "what does the user have available" semantics. Built for exactly
-        // this welcome/UI use case (per the composio skill's `tr-toolkit-query`).
-        const session = await c.create(entityId);
+        // an `isActive` connection flag — fits "what does the user have
+        // available" cleaner than `connectedAccounts.list`. The session itself
+        // is cached per Fluid Compute instance (see lib/tools/composio.ts), so
+        // subsequent runs for the same user skip the establishment cost.
         const result = await session.toolkits();
         connectedToolkits = (result.items ?? [])
           .filter((t) => t.connection?.isActive)

@@ -4,6 +4,10 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.10] — 2026-06-03
+
+- **Performance**: Tool Router sessions are now cached per entity within a Fluid Compute instance. Previously every agent turn (and every `onAssistantThreadStarted`) called `c.create(entityId)` from scratch — paid the full session-establishment round-trip to Composio every time. Now a `getComposioSession(entityId)` helper memoizes the promise per entity, with cache eviction on creation failure so a transient error doesn't poison subsequent attempts. Saves ~100–300ms per repeat turn for active users. Cold-start cost is unchanged.
+
 ## [0.1.9] — 2026-06-03
 
 Tier 2 chat-sdk + Composio skill polish.

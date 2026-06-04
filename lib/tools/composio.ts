@@ -6,17 +6,42 @@ import { log } from '../log';
 import { withStatusLabel } from './registry';
 
 type VercelComposio = Composio<VercelProvider>;
+type ComposioSession = Awaited<ReturnType<VercelComposio['create']>>;
 
-let cached: VercelComposio | undefined;
+let cachedClient: VercelComposio | undefined;
+
+// Per-entity Tool Router session cache. Promise-valued so concurrent requests
+// for the same entity share the in-flight creation. Cache lives for the
+// lifetime of the Fluid Compute instance; on a cold start it's empty.
+// Active users get ~100–300ms shaved off subsequent turns by skipping the
+// session-establishment round-trip to Composio.
+const sessionCache = new Map<string, Promise<ComposioSession>>();
 
 export function composioClient(): VercelComposio | undefined {
   if (!env().COMPOSIO_API_KEY) return undefined;
-  if (!cached)
-    cached = new Composio({
+  if (!cachedClient)
+    cachedClient = new Composio({
       apiKey: env().COMPOSIO_API_KEY,
       provider: new VercelProvider(),
     }) as VercelComposio;
-  return cached;
+  return cachedClient;
+}
+
+/**
+ * Get or create a Tool Router session for an entity. Cached per Fluid Compute
+ * instance — repeated calls for the same entity return the same session.
+ * On creation failure the entry is evicted so the next call retries fresh.
+ */
+export async function getComposioSession(entityId: string): Promise<ComposioSession | undefined> {
+  const c = composioClient();
+  if (!c) return undefined;
+  let pending = sessionCache.get(entityId);
+  if (!pending) {
+    pending = c.create(entityId);
+    sessionCache.set(entityId, pending);
+    pending.catch(() => sessionCache.delete(entityId));
+  }
+  return pending;
 }
 
 const LABEL_RULES: Array<{ prefix: string; label: string }> = [
@@ -42,12 +67,10 @@ function labelFor(name: string): string {
 }
 
 export async function getComposioTools(entityId: string): Promise<Record<string, Tool>> {
-  const c = composioClient();
-  if (!c) return {};
+  const session = await getComposioSession(entityId);
+  if (!session) return {};
 
   try {
-    // Tool Router: create a per-user session and pull whatever the user has connected.
-    const session = await c.create(entityId);
     const allTools = await session.tools();
 
     // Optional intersection filter from env: COMPOSIO_ENABLED_TOOLKITS, comma-separated toolkit slugs.

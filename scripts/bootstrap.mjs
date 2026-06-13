@@ -19,6 +19,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
 import { styleText } from 'node:util';
 
@@ -291,6 +292,18 @@ async function main() {
     s.stop('SLACK_SIGNING_SECRET set');
   } catch (err) {
     s.fail('Failed to write SLACK_SIGNING_SECRET');
+    throw err;
+  }
+
+  // Generate + set CRON_SECRET so the nightly /api/cron/compact route can
+  // authenticate (otherwise it returns 503 and memory compaction never runs).
+  s = spinner('Writing CRON_SECRET…');
+  try {
+    const cronSecret = randomBytes(32).toString('hex');
+    await setVercelEnv('CRON_SECRET', cronSecret);
+    s.stop('CRON_SECRET set');
+  } catch (err) {
+    s.fail('Failed to write CRON_SECRET');
     throw err;
   }
 

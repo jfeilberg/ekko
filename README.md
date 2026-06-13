@@ -43,7 +43,7 @@ Defaults work. Override when you need to:
 - `REDIS_URL` (optional, recommended for prod) — auto-injected by Upstash Marketplace. Without it, idempotency dedup of duplicate Slack event retries is per-instance only.
 
 **Model**
-- `LLM_MODEL` (default `anthropic/claude-opus-4.8`) selects the agent's model through Vercel AI Gateway. See [ai-gateway.vercel.sh/v1/models](https://ai-gateway.vercel.sh/v1/models) for the catalog. **Use dot-separated versions** (`claude-opus-4.8`) — Gateway IDs differ from Anthropic's direct-API hyphen form (`claude-opus-4-8`).
+- `LLM_MODEL` (default `anthropic/claude-haiku-4.5`) selects the agent's model through Vercel AI Gateway. The default is chosen so a fresh free-tier install responds out of the box; Opus / Sonnet require paid AI Gateway credits and will 403 every turn until you add billing. See [ai-gateway.vercel.sh/v1/models](https://ai-gateway.vercel.sh/v1/models) for the catalog. **Use dot-separated versions** (e.g. `claude-haiku-4.5`, `claude-opus-4.8`) — Gateway IDs differ from Anthropic's direct-API hyphen form (`claude-opus-4-8`).
 
 **Composio (optional)**
 - API key at [dashboard.composio.dev](https://dashboard.composio.dev) → set `COMPOSIO_API_KEY`. Without it, the agent runs on MCP + custom + built-in tools only.
@@ -132,7 +132,7 @@ Conversation history is persisted to Postgres (`messages` table) with embeddings
 
 ## Architecture
 
-`CLAUDE.md` has the tight summary (file-level responsibilities, conventions, extension points). `docs/superpowers/specs/2026-05-26-slack-agent-template-design.md` is the original design doc with more rationale.
+See `docs/superpowers/specs/2026-05-26-slack-agent-template-design.md` (original design) and `docs/superpowers/plans/2026-06-01-chat-sdk-migration.md` (latest refactor to Chat SDK).
 
 ## Forking for personal use
 

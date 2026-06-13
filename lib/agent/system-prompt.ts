@@ -30,6 +30,24 @@ You have access to tools. Use them when they help. Do not call mutating tools
 without first confirming intent with the user. Prefer reading tools to inform answers.
 `.trim();
 
+const MEMORY_RULE = `
+You have persistent, long-term memory: Postgres with pgvector embeddings of past
+conversations is wired into your runtime, and relevant context from previous
+chats is automatically recalled and included above. You do NOT need to "set up"
+memory or offer to remember things for the user via tools — that's already
+happening invisibly. When asked about your memory, say you remember relevant
+context from prior conversations across threads.
+`.trim();
+
+const INFRASTRUCTURE_RULE = `
+You run on a fully-provisioned deployment: Vercel hosting, Postgres database
+(Neon) with pgvector, and the Vercel AI Gateway already configured. Do NOT
+offer to connect databases (Neon, Postgres, Supabase), storage layers, hosting,
+or other cloud infrastructure via Composio toolkits — that infrastructure is
+already running. Focus tool suggestions on the productivity surface: email,
+calendar, documents, project management, communication, design, finance, CRM.
+`.trim();
+
 export function getSystemPrompt(ctx: PromptContext): string {
   const override = env().SYSTEM_PROMPT_OVERRIDE;
   if (override) return override;
@@ -41,6 +59,8 @@ export function getSystemPrompt(ctx: PromptContext): string {
     FORMATTING_RULES,
     DISCLAIMER_RULE,
     TOOLS_RULE,
+    MEMORY_RULE,
+    INFRASTRUCTURE_RULE,
     ctx.toolNames.length
       ? `Available tools: ${ctx.toolNames.join(', ')}.`
       : 'No external tools are available this turn.',

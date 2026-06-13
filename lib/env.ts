@@ -14,9 +14,13 @@ const schema = z.object({
   DATABASE_URL: z.string().url().describe('Postgres connection string (Neon recommended; works with Supabase, local, etc.)'),
   AI_GATEWAY_API_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  // Default to a model the Vercel AI Gateway free tier allows so a fresh
+  // `npx create-ekko-agent` install responds on the first message without the
+  // user adding paid credits. Opus / Sonnet are paid-tier on AI Gateway and
+  // return 403 with no credit — easy to upgrade to once the user has billing.
   // Vercel AI Gateway uses dot-separated versions (e.g. `claude-opus-4.8`),
   // NOT the hyphen form Anthropic's direct API uses (`claude-opus-4-8`).
-  LLM_MODEL: z.string().default('anthropic/claude-opus-4.8'),
+  LLM_MODEL: z.string().default('anthropic/claude-haiku-4.5'),
   EMBEDDING_MODEL: z.string().default('openai/text-embedding-3-small'),
   SYSTEM_PROMPT_OVERRIDE: z.string().optional(),
   ALLOW_CROSS_CHANNEL_POST: toBool,

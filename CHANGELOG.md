@@ -4,6 +4,17 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.11] — 2026-06-XX
+
+Emergency batch from end-to-end user feedback. The bootstrap was failing or producing a broken-looking agent on fresh free-tier installs; this round makes the out-of-the-box experience actually work.
+
+- **Fix (critical)**: `vercel.ts` shipped the compact cron with `maxDuration: 800`. Vercel Hobby plan caps function timeout at 300s, so a fresh `npx create-ekko-agent` aborted at the deploy step with `The value for maxDuration must be between 1 second and 300 seconds`. Capped at 300; users on paid plans can raise it manually.
+- **Fix (critical)**: `LLM_MODEL` default changed from `anthropic/claude-opus-4.8` → `anthropic/claude-haiku-4.5`. Opus and Sonnet are paid-tier on the Vercel AI Gateway free tier and return 403 on every turn — a fresh install looked completely broken until the user added paid credits. Haiku 4.5 is allowed on the free tier and the bot responds out of the box. Upgrade by setting `LLM_MODEL` env var when you've added billing.
+- **Fix**: `slack-manifest.yaml` now subscribes to `message.channels` + `message.groups` events and requests `files:read` + `files:write` scopes. Without these the bot couldn't follow channel threads or interact with uploaded/shared files at all. Existing installs need to reinstall to grant the new scopes.
+- **Fix**: bootstrap now generates a 32-byte hex `CRON_SECRET` and writes it to Vercel env. Without this, the `/api/cron/compact` route returned 503 and nightly memory compaction silently never ran.
+- **Fix (system prompt)**: agent now knows it has persistent pgvector memory and tells users so when asked — instead of confidently claiming it has no memory and offering to build a database. Also explicitly told not to suggest connecting infrastructure (Neon, Postgres, Supabase, etc.) via Composio toolkits, since that infrastructure is already running.
+- **Polish**: `package.json` `engines.node` pinned to `22.x` (was `>=22`). Stops Vercel from emitting "will auto-upgrade Node major" warning on every deploy.
+
 ## [0.1.10] — 2026-06-03
 
 - **Performance**: Tool Router sessions are now cached per entity within a Fluid Compute instance. Previously every agent turn (and every `onAssistantThreadStarted`) called `c.create(entityId)` from scratch — paid the full session-establishment round-trip to Composio every time. Now a `getComposioSession(entityId)` helper memoizes the promise per entity, with cache eviction on creation failure so a transient error doesn't poison subsequent attempts. Saves ~100–300ms per repeat turn for active users. Cold-start cost is unchanged.

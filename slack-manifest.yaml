@@ -32,6 +32,8 @@ oauth_config:
       - chat:write
       - chat:write.public
       - commands
+      - files:read
+      - files:write
       - groups:history
       - im:history
       - im:read
@@ -45,6 +47,8 @@ settings:
       - app_mention
       - assistant_thread_context_changed
       - assistant_thread_started
+      - message.channels
+      - message.groups
       - message.im
   org_deploy_enabled: false
   socket_mode_enabled: false

@@ -11,7 +11,7 @@ describe('loadEnv', () => {
   it('parses a valid env object', () => {
     const env = loadEnv(REQUIRED);
     expect(env.SLACK_BOT_TOKEN).toBe('xoxb-test');
-    expect(env.LLM_MODEL).toBe('anthropic/claude-opus-4.8');
+    expect(env.LLM_MODEL).toBe('anthropic/claude-haiku-4.5');
     expect(env.COMPOSIO_ENABLED_TOOLKITS).toEqual([]);
     expect(env.ALLOW_CROSS_CHANNEL_POST).toBe(false);
   });

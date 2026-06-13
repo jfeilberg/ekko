@@ -4,6 +4,16 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.16] — 2026-06-13
+
+- **Docs**: new README section "Working with Vercel env vars — footguns to know" documenting (a) `vercel env add` via piped stdin silently writes empty (use `--value --force --yes`), and (b) Sensitive env vars come back empty from `vercel env pull` by design (expected Vercel behavior, surprising for local debug).
+- Tightened the storage section to reflect that Upstash is now provisioned automatically by `pnpm bootstrap` rather than "optional, recommended for prod."
+
+## [0.1.15] — 2026-06-13
+
+- **UX**: bootstrap now auto-provisions Upstash Redis via Vercel Marketplace immediately after Neon (the same `vercel integration add` CLI path we use for Neon, slug `upstash/upstash-kv`). Same fallback to the browser flow if the CLI path doesn't work. Cures the silent thread-follow bug that v0.1.14's warning surfaced: a fresh `npx create-ekko-agent` now ships with Redis already configured, so `thread.subscribe()` survives across Fluid Compute instances and `onSubscribedMessage` actually fires.
+- The Upstash free tier (10k commands/day, 256MB) is more than enough for personal-use Slack bots. Users can decline the prompt if they want to skip it — the warning from v0.1.14 still fires at boot.
+
 ## [0.1.14] — 2026-06-13
 
 - **Visibility**: log a startup warning when `REDIS_URL` is unset. The default `createMemoryState()` adapter doesn't survive across Fluid Compute instances, so `thread.subscribe()` set on instance A is lost when the user's reply lands on instance B — `onSubscribedMessage` silently never fires, the user sees Ekko respond to the first message and then go quiet. The warning makes the failure mode visible in Vercel runtime logs instead of buried in user confusion. (Real fix is to add Upstash Redis via Vercel Marketplace; this changelog entry is the breadcrumb that points there.)

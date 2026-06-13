@@ -102,7 +102,7 @@ function abort(msg) {
 async function main() {
   ui.banner('Ekko setup', 'fresh clone → working bot in Slack, ~3 minutes');
   ui.say('This will:');
-  ui.info('1. Provision Neon Postgres (DATABASE_URL)');
+  ui.info('1. Provision Neon Postgres + Upstash Redis');
   ui.info('2. Create Slack app from manifest');
   ui.info('3. OAuth install in your workspace');
   ui.info('4. Write env vars to Vercel');
@@ -175,6 +175,46 @@ async function main() {
       ui.info('Skipped. Set DATABASE_URL manually before deploying:');
       ui.info('  vercel env add DATABASE_URL production');
       ui.info('  Then run `pnpm db:push` after deploy.');
+    }
+  }
+
+  // ---- Step 1b: Provision Upstash Redis ----
+  // Not a numbered step in the intro list — bundled under "storage" so the
+  // user perceives one provisioning phase. Without Redis, Chat SDK dedup is
+  // per-instance only and thread-follow silently breaks across Fluid Compute
+  // instances (the user mentions Ekko, gets a reply, replies in-thread, and
+  // nothing happens because the subscription is in a different instance).
+  console.log();
+  const hasRedisUrl = await vercelEnvExists('REDIS_URL');
+  if (hasRedisUrl) {
+    ui.ok('REDIS_URL already set — skipping Upstash provisioning.');
+  } else {
+    ui.info('Ekko uses Redis for thread-follow + event dedup across deploy instances.');
+    ui.info('Upstash for Redis (free tier, 10k commands/day, 256MB) is the default.');
+    console.log();
+    const wantRedis = (await ask('Provision Upstash Redis via Vercel Marketplace? (Y/n) ')).trim().toLowerCase();
+    if (wantRedis !== 'n') {
+      const cliSpinner = spinner('Provisioning Upstash Redis via Vercel CLI…');
+      // Slug per `vercel integration discover redis` → "Upstash for Redis"
+      const cliOk = await tryVercelIntegrationAdd('upstash/upstash-kv');
+      if (cliOk) {
+        cliSpinner.stop('Upstash Redis provisioned and REDIS_URL injected');
+      } else {
+        cliSpinner.fail('CLI provisioning unavailable — falling back to browser');
+        ui.info('Opening https://vercel.com/marketplace/upstash …');
+        ui.info('Click "Add Integration" → "Upstash for Redis", select this project, complete the flow.');
+        const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        spawn(opener, ['https://vercel.com/marketplace/upstash'], { detached: true, stdio: 'ignore' });
+        await ask('Press Enter once Upstash is connected and REDIS_URL is set… ');
+        const confirmed = await vercelEnvExists('REDIS_URL');
+        if (!confirmed) {
+          ui.warn('REDIS_URL still not detected. Thread-follow will silently break across Fluid Compute instances until this is set.');
+        } else {
+          ui.ok('REDIS_URL confirmed.');
+        }
+      }
+    } else {
+      ui.warn('Skipped. Thread-follow will silently break across Fluid Compute instances until REDIS_URL is set.');
     }
   }
 

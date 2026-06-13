@@ -40,7 +40,7 @@ Defaults work. Override when you need to:
 
 **Storage**
 - `DATABASE_URL` is auto-injected by Vercel when you add Neon Postgres via Marketplace (recommended — auto-suspends on idle, cheap for Slack bots). Any standard Postgres connection string works — Neon, Supabase, Railway, local. Run `pnpm db:push` to apply migrations after.
-- `REDIS_URL` (optional, recommended for prod) — auto-injected by Upstash Marketplace. Without it, idempotency dedup of duplicate Slack event retries is per-instance only.
+- `REDIS_URL` is auto-injected by Upstash Marketplace. `pnpm bootstrap` provisions Upstash automatically alongside Neon. Without it, thread-follow silently breaks across Fluid Compute instances and event-dedup is per-instance only.
 
 **Model**
 - `LLM_MODEL` (default `anthropic/claude-haiku-4.5`) selects the agent's model through Vercel AI Gateway. The default is chosen so a fresh free-tier install responds out of the box; Opus / Sonnet require paid AI Gateway credits and will 403 every turn until you add billing. See [ai-gateway.vercel.sh/v1/models](https://ai-gateway.vercel.sh/v1/models) for the catalog. **Use dot-separated versions** (e.g. `claude-haiku-4.5`, `claude-opus-4.8`) — Gateway IDs differ from Anthropic's direct-API hyphen form (`claude-opus-4-8`).
@@ -52,6 +52,13 @@ Defaults work. Override when you need to:
 **Access control**
 - Default: open to anyone the bot can see in your Slack workspace.
 - To restrict: `EKKO_ACCESS_MODE=allowlist` plus `EKKO_ALLOWED_USERS` and/or `EKKO_ALLOWED_CHANNELS` (comma-separated Slack IDs).
+
+## Working with Vercel env vars — footguns to know
+
+A couple of Vercel CLI behaviors that bit early testers:
+
+- **`vercel env add <KEY> production` via piped stdin silently writes an empty value.** Vercel CLI's TTY-style prompts don't reliably read piped input. Always use `--value <V> --force --yes` for non-interactive writes (the `bootstrap` script does this internally for Slack tokens, the Composio key, and `CRON_SECRET`). If you're scripting your own env writes — for example overriding `LLM_MODEL` — use the same pattern, the Vercel REST API, or the dashboard.
+- **`vercel env pull .env.local` returns sensitive values as empty strings.** `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, and `COMPOSIO_API_KEY` are marked Sensitive by Vercel (set by `bootstrap`), which means the dashboard and the CLI's pull command can never read them back — only your function code can decrypt them at runtime. This is expected Vercel behavior, but surprising for local debugging. If you need a sensitive value locally, copy it once from wherever you originally generated it (e.g. the Slack OAuth flow) and stash it in your own password manager.
 
 ## Slack access — what the bot can see vs. what you can see
 

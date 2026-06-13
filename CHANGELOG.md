@@ -4,7 +4,20 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
-## [0.1.11] — 2026-06-XX
+## [0.1.14] — 2026-06-13
+
+- **Visibility**: log a startup warning when `REDIS_URL` is unset. The default `createMemoryState()` adapter doesn't survive across Fluid Compute instances, so `thread.subscribe()` set on instance A is lost when the user's reply lands on instance B — `onSubscribedMessage` silently never fires, the user sees Ekko respond to the first message and then go quiet. The warning makes the failure mode visible in Vercel runtime logs instead of buried in user confusion. (Real fix is to add Upstash Redis via Vercel Marketplace; this changelog entry is the breadcrumb that points there.)
+
+## [0.1.13] — 2026-06-13
+
+- **Fix**: empty-text content no longer crashes the turn. Anthropic (and other strict providers) reject messages with `text content blocks must be non-empty`, which is exactly what `chat-sdk` produces when a Slack file is uploaded with no caption — a multipart user message whose text part is `""`. Bootstrap now sanitizes every assembled message before sending: empty string content gets a `[attached content / no caption]` placeholder, and empty `{ type: 'text', text: '' }` parts inside multipart content get the same. File uploads without captions no longer surface "I hit an error pulling that together."
+- Note: this is a defensive guard. Forwarding the file *content* itself to the model (PDFs, etc.) is a separate concern — `chat-sdk`'s `attachmentToPart` currently only passes images + text MIME types through. Multimodal beyond images needs a chat-sdk upstream change.
+
+## [0.1.12] — 2026-06-13
+
+- **UX**: Composio onboarding no longer requires a manual API-key paste. After "Connect Composio? (Y/n)" the bootstrap asks "Already have a Composio account?" If no (the common new-user case), it `POST`s to `agents.composio.dev/api/signup` (Composio's agent self-signup endpoint), captures the returned `api_key`, writes it to Vercel env, and saves the full credentials payload (including the `agent_key`) to `~/.composio/anonymous_user_data.json` so the user can later run `composio claim` from a human Composio login to take the account over. If signup fails for any reason, the script falls back to the manual paste path. Reference: [docs.composio.dev/docs/signing-up-as-an-agent](https://docs.composio.dev/docs/signing-up-as-an-agent).
+
+## [0.1.11] — 2026-06-13
 
 Emergency batch from end-to-end user feedback. The bootstrap was failing or producing a broken-looking agent on fresh free-tier installs; this round makes the out-of-the-box experience actually work.
 

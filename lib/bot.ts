@@ -171,6 +171,20 @@ export function getBot(): EkkoChat {
   });
   registerHandlers(chat);
   log.info({ state: e.REDIS_URL ? 'redis' : 'memory' }, 'ekko.boot');
+  // Without a persistent state adapter, thread subscriptions don't survive
+  // across Fluid Compute instances — onNewMention sets `thread.subscribe()`
+  // on instance A, the user replies, the event lands on instance B which has
+  // no record of the subscription, and onSubscribedMessage silently never
+  // fires. The user sees Ekko respond to the first message and then go quiet.
+  // Add Upstash Redis (Vercel Marketplace, one click) to enable thread-follow.
+  if (!e.REDIS_URL) {
+    log.warn(
+      {},
+      'REDIS_URL unset. Thread-follow (replies to a mention) will only work when ' +
+      'the follow-up lands on the same Fluid Compute instance. Add Upstash Redis ' +
+      'via Vercel Marketplace to fix.',
+    );
+  }
   bot = chat;
   return bot;
 }

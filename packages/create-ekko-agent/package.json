@@ -1,6 +1,6 @@
 {
   "name": "create-ekko-agent",
-  "version": "0.1.11",
+  "version": "0.1.14",
   "description": "Scaffold a Slack-native AI agent in one command.",
   "type": "module",
   "bin": {

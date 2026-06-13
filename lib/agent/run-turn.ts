@@ -158,6 +158,36 @@ export async function runTurn(input: TurnInput): Promise<void> {
       messages.push({ role: 'user', content: userText });
     }
 
+    // Anthropic (and many providers) reject messages with empty text content
+    // — "messages: text content blocks must be non-empty". A common trigger is
+    // a Slack file upload with no caption: chat-sdk produces a multipart user
+    // message where the text part is the empty string. Sanitize user messages
+    // so empty text never reaches the model. (System/assistant/tool messages
+    // don't surface this failure mode in practice.)
+    const placeholder = '[attached content / no caption]';
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      if (!m || m.role !== 'user') continue;
+      if (typeof m.content === 'string') {
+        if (m.content.trim() === '') {
+          messages[i] = { ...m, content: placeholder };
+        }
+        continue;
+      }
+      if (Array.isArray(m.content)) {
+        const parts = m.content.map((p) => {
+          if (p && typeof p === 'object' && (p as { type?: string }).type === 'text') {
+            const tp = p as { type: 'text'; text?: string };
+            if (!tp.text || tp.text.trim() === '') {
+              return { ...tp, text: placeholder };
+            }
+          }
+          return p;
+        });
+        messages[i] = { ...m, content: parts as typeof m.content };
+      }
+    }
+
     const systemPrompt = getSystemPrompt({
       slackUserId,
       teamId,

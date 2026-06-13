@@ -17,6 +17,7 @@ import { stdin, stdout } from 'node:process';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
+import { mkdir as fsMkdir, writeFile as fsWriteFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -313,17 +314,71 @@ async function main() {
   ui.say(c.dim('Optional: Composio for 1000+ tools (Gmail, Linear, Notion, etc.)'));
   const wantComposio = (await ask('Connect Composio? (Y/n) ')).trim().toLowerCase();
   if (wantComposio !== 'n') {
-    ui.info('Get an API key at: https://dashboard.composio.dev');
-    const k = (await ask('Paste Composio API key (or press Enter to skip): ')).trim();
-    if (k) {
-      s = spinner('Writing COMPOSIO_API_KEY…');
+    const haveAccount = (await ask('Already have a Composio account? (y/N) ')).trim().toLowerCase();
+    if (haveAccount === 'y') {
+      ui.info('Get the API key at: https://dashboard.composio.dev');
+      const k = (await ask('Paste Composio API key: ')).trim();
+      if (k) {
+        s = spinner('Writing COMPOSIO_API_KEY…');
+        try {
+          await setVercelEnv('COMPOSIO_API_KEY', k);
+          s.stop('COMPOSIO_API_KEY set');
+          composioConfigured = true;
+        } catch (err) {
+          s.fail('Failed to write COMPOSIO_API_KEY');
+          throw err;
+        }
+      }
+    } else {
+      // Composio's agent self-signup: POST /api/signup creates an account for us
+      // and returns the real api_key alongside an agent_key that can later claim
+      // the account from a human Composio login.
+      // Docs: https://docs.composio.dev/docs/signing-up-as-an-agent
+      s = spinner('Creating Composio agent account (~30s)…');
       try {
-        await setVercelEnv('COMPOSIO_API_KEY', k);
-        s.stop('COMPOSIO_API_KEY set');
+        const res = await fetch('https://agents.composio.dev/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        const apiKey = data?.composio?.api_key ?? data?.api_key;
+        if (!res.ok || !apiKey) {
+          throw new Error(data?.error?.message ?? data?.error ?? `signup returned ${res.status}`);
+        }
+        await setVercelEnv('COMPOSIO_API_KEY', apiKey);
         composioConfigured = true;
+        s.stop(data.slug ? `Composio account created (${data.slug})` : 'Composio account created');
+
+        // Save the full signup payload so the user can claim the account into
+        // their own Composio login later (per Composio's agent flow).
+        try {
+          const composioDir = path.join(process.env.HOME ?? '/tmp', '.composio');
+          await fsMkdir(composioDir, { recursive: true });
+          const dataPath = path.join(composioDir, 'anonymous_user_data.json');
+          await fsWriteFile(dataPath, JSON.stringify(data, null, 2), { mode: 0o600 });
+          ui.info(`Credentials saved locally at ${dataPath}`);
+          if (data.agent_key) {
+            ui.info('To claim this account from a human Composio login: `composio claim` from any terminal authed to Composio.');
+          }
+        } catch (err) {
+          ui.warn(`Saved API key to Vercel but couldn't write local credentials file: ${err.message}`);
+        }
       } catch (err) {
-        s.fail('Failed to write COMPOSIO_API_KEY');
-        throw err;
+        s.fail(`Composio signup failed: ${err.message}`);
+        ui.info('Falling back to manual paste. Get a key at: https://dashboard.composio.dev');
+        const k = (await ask('Paste Composio API key (or press Enter to skip): ')).trim();
+        if (k) {
+          s = spinner('Writing COMPOSIO_API_KEY…');
+          try {
+            await setVercelEnv('COMPOSIO_API_KEY', k);
+            s.stop('COMPOSIO_API_KEY set');
+            composioConfigured = true;
+          } catch (err2) {
+            s.fail('Failed to write COMPOSIO_API_KEY');
+            throw err2;
+          }
+        }
       }
     }
   }

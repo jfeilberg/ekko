@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.3] — 2026-06-15
+
+PDF delivery for design-system artifacts, on by default.
+
+- **PDF by default**: decks and documents now deliver as a **PDF** (previews inline in Slack, the friendliest format) when `export_pdf` is available, instead of HTML-by-default. The `design-system` skill and the `export_pdf` tool description were updated to prefer PDF and to never tell the user "I can't make a PDF."
+- **`export_pdf` is offered on any Vercel deploy.** Previously it was gated on `VERCEL_OIDC_TOKEN` being visible in `process.env` at tool-registration time, which isn't reliable (the Sandbox OIDC token is request-scoped) — so the tool silently never appeared and the model claimed it couldn't make a PDF. Now it's offered whenever running on Vercel (`process.env.VERCEL`), where the Sandbox authenticates via OIDC at call time.
+- **Always-safe with graceful fallback**: if the server-side render fails for any reason (sandbox/OIDC/timeout), `export_pdf` now automatically delivers the self-contained **HTML** instead (which still exports to PDF from the browser), rather than returning an error. So asking for a PDF always yields the artifact.
+
 ## [0.2.2] — 2026-06-15
 
 - **Fix (critical)**: skill artifacts (`render_artifact`, `export_pdf`) never arrived in the Slack thread, yet the bot reported success ("Done. 6-slide deck…" with no file). Both tools uploaded via a hand-rolled `WebClient.filesUploadV2({ thread_ts })`, passing the Chat SDK's **composite `thread.id`** as `thread_ts`. That is not a raw Slack `thread_ts`, so the upload completed against an invalid thread and the file silently never landed — while the tool still returned `ok: true`. Both tools now deliver through the live Chat SDK thread (`thread.post({ files })`), which resolves the real channel + `thread_ts` from the thread and throws on failure. The file now lands in the thread, and a failed delivery surfaces an error instead of a false "Done". The live `thread` is plumbed into the tool context via `experimental_context`.

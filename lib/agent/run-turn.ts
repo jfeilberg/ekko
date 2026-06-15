@@ -77,6 +77,10 @@ export async function runTurn(input: TurnInput): Promise<void> {
       // Built-in Slack tools + the skills progressive-disclosure tool.
       builtin: { ...builtinTools(), ...skillTools() } as Record<string, Tool>,
     });
+    log.info(
+      { surface, toolCount: Object.keys(tools).length, pdfExport: 'export_pdf' in tools },
+      'turn.tools',
+    );
 
     // --- Plan: in-bubble task cards ---
     // Post a Plan before the agent runs so the user sees progress immediately.

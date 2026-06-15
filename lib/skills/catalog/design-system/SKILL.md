@@ -91,12 +91,23 @@ verifies self-containment, then posts the single file to the Slack thread.
   them (`core/tokens.css`, `brands/base/brand.css`, `core/deck-runtime.js`, …).
 - `render_artifact` reports `missingRefs` / `unresolvedRefs` if a path is wrong —
   fix the paths and call it again until `selfContained` is true.
-- The delivered HTML opens in any browser; decks and documents export to PDF via
-  the browser print dialog (press `P` in a deck).
-- If the user explicitly wants a **PDF file** and the `export_pdf` tool is
-  available, call it instead of `render_artifact` — it renders the PDF
-  server-side (headless Chromium in a sandbox) and posts the file. It is slower,
-  so only use it on explicit request; otherwise deliver HTML.
+**Default delivery: prefer PDF.** A PDF previews inline in Slack and is the most
+useful format for the reader, so for **decks and documents deliver a PDF by
+default** when the `export_pdf` tool is available — call `export_pdf` (filename +
+the full HTML). It renders server-side and, if that ever fails, automatically
+falls back to delivering the self-contained HTML, so it is always safe to call.
+The first render may take ~30–60s (it builds a reusable snapshot); say so if it
+helps set expectations.
+
+Use `render_artifact` (HTML) instead when:
+- `export_pdf` is not in your tools this turn, or
+- the user asks for an HTML / editable / live file, or
+- it's a social carousel meant to be posted as-is.
+
+Either way, reference assets with skill-root-relative paths; the delivered file
+opens in any browser and decks export to PDF with the `P` key. Never tell the
+user you "can't make a PDF" — either call `export_pdf`, or deliver the HTML and
+note that it exports to PDF from the browser print dialog.
 
 ## Rules that keep artifacts on-brand
 

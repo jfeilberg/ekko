@@ -31,9 +31,16 @@ export function resolvePdfExport(mode: 'auto' | 'on' | 'off', hasCredentials: bo
   return hasCredentials; // 'auto'
 }
 
-/** Vercel Sandbox authenticates via OIDC (auto-injected on Vercel) or a token. */
+/**
+ * Vercel Sandbox authenticates via OIDC (auto-injected on Vercel) or a token.
+ * On Vercel the request-scoped OIDC token isn't always visible in process.env at
+ * tool-registration time, so treat "running on Vercel" as credentials-present —
+ * export_pdf is then offered on any Vercel deploy, and an actual auth/render
+ * failure degrades to HTML delivery (see exportPdfTool's catch). VERCEL_TOKEN
+ * covers local / self-hosted runs.
+ */
 function sandboxCredentialsPresent(): boolean {
-  return Boolean(process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_TOKEN);
+  return Boolean(process.env.VERCEL || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL_TOKEN);
 }
 
 export function isPdfExportEnabled(): boolean {
@@ -159,11 +166,14 @@ export function exportPdfTool(): Record<string, Tool> {
     export_pdf: withStatusLabel(
       tool({
         description:
-          'Render an authored design-system artifact to a PDF and post it to the Slack thread. ' +
-          'Use when the user explicitly asks for a PDF file. For normal delivery prefer ' +
-          'render_artifact (HTML). Reference skill assets with skill-root-relative paths; they ' +
-          'are inlined and fonts embedded automatically. Slower than render_artifact (spins up a ' +
-          'sandbox), so only use it when a PDF is specifically requested.',
+          'Deliver an authored design-system artifact (deck or document) to the Slack thread as a ' +
+          'PDF — the preferred, most readable delivery, since PDFs preview inline in Slack. Renders ' +
+          'server-side (headless Chromium) and, if that ever fails, automatically falls back to ' +
+          'delivering the self-contained HTML, so it is always safe to call. Reference skill assets ' +
+          'with skill-root-relative paths; they are inlined and fonts embedded. The first render may ' +
+          'take ~30–60s (it builds a reusable sandbox snapshot); later ones are fast. Prefer this ' +
+          'over render_artifact for decks and documents; use render_artifact when the user wants an ' +
+          'HTML/editable file or a social carousel.',
         inputSchema: z.object({
           filename: z.string().describe('File name ending in .pdf, e.g. "pitch-deck.pdf".'),
           html: z.string().describe('The full HTML document, with assets referenced by skill-relative path.'),
@@ -174,7 +184,7 @@ export function exportPdfTool(): Record<string, Tool> {
           opts: { experimental_context?: unknown } = {},
         ) => {
           const ctx = opts.experimental_context as RuntimeCtx | undefined;
-          if (!ctx?.thread) return { ok: false, error: 'No Slack thread available to deliver the PDF into.' };
+          if (!ctx?.thread) return { ok: false, error: 'No Slack thread available to deliver into.' };
 
           const bundled = await bundleArtifact(html);
           if (bundled.missing.length) {
@@ -182,28 +192,37 @@ export function exportPdfTool(): Record<string, Tool> {
             return { ok: false, error: 'Unresolved asset references — fix these and retry.', missingRefs: bundled.missing };
           }
 
+          const pdfName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+          const htmlName = pdfName.replace(/\.pdf$/, '.html');
+
           let pdf: Buffer;
           try {
             pdf = await renderPdfInSandbox(bundled.html);
           } catch (err) {
-            log.warn({ err }, 'pdf_export_failed');
+            // Server-side render failed (sandbox unavailable, OIDC, timeout, …).
+            // Still deliver the self-contained HTML so the user gets the artifact —
+            // it exports to PDF from the browser print dialog (press P in a deck).
+            // export_pdf is therefore always safe to call: worst case → HTML.
+            log.warn({ err }, 'pdf_export_failed_html_fallback');
+            await ctx.thread.post({
+              markdown:
+                comment ??
+                `📎 ${htmlName} — couldn't render a server-side PDF, so here's the HTML. Open it and press P (or the browser print dialog) to save as PDF.`,
+              files: [{ data: Buffer.from(bundled.html, 'utf8'), filename: htmlName, mimeType: 'text/html' }],
+            });
             return {
-              ok: false,
-              error:
-                'PDF export failed in the sandbox. Deliver the artifact with render_artifact instead — ' +
-                'the HTML exports to PDF from the browser print dialog.',
+              ok: true,
+              deliveredAs: 'html',
+              note: 'Server-side PDF render unavailable; delivered self-contained HTML (exports to PDF from the browser).',
             };
           }
 
-          const name = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-          // Deliver through the Chat SDK thread (correct channel + thread_ts,
-          // throws on failure → no false "Done").
+          // Deliver through the Chat SDK thread (correct channel + thread_ts).
           await ctx.thread.post({
-            markdown: comment ?? `📎 ${name}`,
-            files: [{ data: pdf, filename: name, mimeType: 'application/pdf' }],
+            markdown: comment ?? `📎 ${pdfName}`,
+            files: [{ data: pdf, filename: pdfName, mimeType: 'application/pdf' }],
           });
-
-          return { ok: true, sizeKb: Math.round(pdf.byteLength / 1024) };
+          return { ok: true, deliveredAs: 'pdf', sizeKb: Math.round(pdf.byteLength / 1024) };
         },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any) as Tool,

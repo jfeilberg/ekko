@@ -69,6 +69,18 @@ try {
 const BROWSERS_PATH = '/vercel/sandbox/.playwright';
 const SANDBOX_TIMEOUT_MS = 5 * 60 * 1000;
 
+// Chromium's runtime shared libraries (NSPR/NSS, X libs, fontconfig deps, …).
+// The Vercel Sandbox runs Amazon Linux 2023, which Playwright's own
+// `install --with-deps` does NOT support (it only knows apt-get, so it exits
+// 127 and the browser fails to launch with "libnspr4.so: cannot open shared
+// object file"). We install the libs ourselves via dnf as passwordless root.
+const CHROMIUM_LIBS = [
+  'nss', 'nspr', 'atk', 'at-spi2-atk', 'at-spi2-core', 'cups-libs', 'libdrm',
+  'libxkbcommon', 'libXcomposite', 'libXdamage', 'libXext', 'libXfixes',
+  'libXrandr', 'mesa-libgbm', 'pango', 'cairo', 'alsa-lib', 'libX11', 'libxcb',
+  'libXrender',
+];
+
 type SandboxModule = typeof import('@vercel/sandbox');
 type SandboxInstance = Awaited<ReturnType<SandboxModule['Sandbox']['create']>>;
 
@@ -77,6 +89,8 @@ async function installPlaywright(sandbox: SandboxInstance): Promise<void> {
     ['npm', ['init', '-y']],
     ['npm', ['install', 'playwright-core']],
     ['npx', ['--yes', 'playwright', 'install', 'chromium-headless-shell']],
+    // Install Chromium's system libraries (dnf, not Playwright's apt-only deps).
+    ['sudo', ['dnf', 'install', '-y', ...CHROMIUM_LIBS]],
   ];
   for (const [cmd, args] of steps) {
     const r = await sandbox.runCommand(cmd, args);
@@ -171,7 +185,7 @@ export function exportPdfTool(): Record<string, Tool> {
           'server-side (headless Chromium) and, if that ever fails, automatically falls back to ' +
           'delivering the self-contained HTML, so it is always safe to call. Reference skill assets ' +
           'with skill-root-relative paths; they are inlined and fonts embedded. The first render may ' +
-          'take ~30–60s (it builds a reusable sandbox snapshot); later ones are fast. Prefer this ' +
+          'take up to ~2 min (it builds a reusable sandbox snapshot); later ones are fast. Prefer this ' +
           'over render_artifact for decks and documents; use render_artifact when the user wants an ' +
           'HTML/editable file or a social carousel.',
         inputSchema: z.object({
@@ -207,13 +221,16 @@ export function exportPdfTool(): Record<string, Tool> {
             await ctx.thread.post({
               markdown:
                 comment ??
-                `📎 ${htmlName} — couldn't render a server-side PDF, so here's the HTML. Open it and press P (or the browser print dialog) to save as PDF.`,
+                `📎 ${htmlName} — here's the artifact as HTML. Open it and press P (or use the browser's print dialog) to save it as a PDF.`,
               files: [{ data: Buffer.from(bundled.html, 'utf8'), filename: htmlName, mimeType: 'text/html' }],
             });
             return {
               ok: true,
               deliveredAs: 'html',
-              note: 'Server-side PDF render unavailable; delivered self-contained HTML (exports to PDF from the browser).',
+              // Factual note for the model. Do NOT speculate to the user about
+              // why PDF didn't render or whether it will work next time — the
+              // HTML was delivered and that is the outcome to report.
+              note: 'Delivered the self-contained HTML (it exports to PDF from the browser print dialog). Tell the user the artifact is attached as HTML; do not claim the PDF service is temporarily down or will recover.',
             };
           }
 

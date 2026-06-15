@@ -96,8 +96,10 @@ useful format for the reader, so for **decks and documents deliver a PDF by
 default** when the `export_pdf` tool is available — call `export_pdf` (filename +
 the full HTML). It renders server-side and, if that ever fails, automatically
 falls back to delivering the self-contained HTML, so it is always safe to call.
-The first render may take ~30–60s (it builds a reusable snapshot); say so if it
-helps set expectations.
+The first render may take up to ~2 min (it builds a reusable snapshot); say so if
+it helps set expectations. If it falls back to HTML, just say the artifact is
+attached as HTML — don't tell the user the PDF service is "temporarily down" or
+guess about whether it will work next time.
 
 Use `render_artifact` (HTML) instead when:
 - `export_pdf` is not in your tools this turn, or

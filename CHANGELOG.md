@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.4] — 2026-06-15
+
+Server-side PDF export now actually renders (it was silently falling back to HTML).
+
+- **Fix (critical)**: `export_pdf` always fell back to HTML because Chromium couldn't launch in the Vercel Sandbox — `libnspr4.so: cannot open shared object file`. The sandbox runs **Amazon Linux 2023**, whose package manager is `dnf`/`yum`, but Playwright's `install --with-deps` only knows `apt-get` (it exits 127 on this OS), so Chromium's runtime system libraries (NSPR/NSS, X libs, etc.) were never installed. The sandbox setup now installs them explicitly via `sudo dnf install -y …` (passwordless root is available in the sandbox). Verified end-to-end: Chromium launches and renders the PDF. The reusable snapshot captures the installed libs, so only the first (cold) render pays the install cost.
+- **Fix**: when PDF export *does* fall back to HTML, the model no longer invents a false-reassurance story ("the PDF service is briefly unavailable / recovers fast"). The fallback note and skill guidance now instruct it to simply report the artifact was delivered as HTML, without speculating about service availability.
+- First cold render now takes up to ~2 min (it adds the one-time `dnf` install before snapshotting); subsequent renders remain fast.
+
 ## [0.2.3] — 2026-06-15
 
 PDF delivery for design-system artifacts, on by default.

@@ -9,6 +9,9 @@ export type PromptContext = {
   toolNames: string[];
 };
 
+// Baseline voice for every fork. Identity/personality belongs in the
+// fork-owned persona.ts; these rules govern *how* the assistant writes and are
+// upstream-owned so improvements propagate on `git merge upstream/main`.
 const VOICE_RULES = `
 Write the way a sharp, busy colleague writes, not the way a chatbot does.
 - Lead with the answer. People skim Slack on mobile, so the point goes first and the context after.

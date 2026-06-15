@@ -13,6 +13,7 @@ Next.js 16 App Router · TypeScript strict · Vercel AI SDK v6 · Vercel AI Gate
 - `lib/agent/run-turn.ts`: shared turn logic — loads tools + context, runs `ToolLoopAgent` from the AI SDK, pipes `textStream` into `thread.post(...)`, persists the turn to Postgres, emits per-tool progress via a Chat SDK `Plan`.
 - `lib/agent/{persona,system-prompt,suggested-prompts}.ts`: persona + assembly. `persona.ts` is the forker-owned extension point.
 - `lib/tools/`: composio (Tool Router, dynamic per user) + mcp (remote MCP servers from `custom/mcp-servers.ts`) + custom (forker-owned tools) + builtin (Slack-native via bot token), merged in `registry.ts`.
+- `lib/skills/`: packaged task instructions following the open Agent Skills standard (`SKILL.md`). Authored in `catalog/<name>/SKILL.md`, compiled to `catalog.generated.ts` by `pnpm skills:build`. Progressive disclosure: L1 metadata always in the prompt, L2 body loaded on demand via the `load_skill` tool. See `lib/skills/README.md`.
 - `lib/memory/`: pgvector recall for cross-thread context. Recent thread history comes from Slack via `thread.adapter.fetchMessages` in `run-turn.ts`.
 - `lib/db.ts`: memoized Postgres.js client. Single `DATABASE_URL` env var works with Neon, Supabase, local Postgres.
 - `lib/access.ts`: optional allowlist by user id or channel id, controlled by `EKKO_ACCESS_MODE` env var.
@@ -23,7 +24,8 @@ Next.js 16 App Router · TypeScript strict · Vercel AI SDK v6 · Vercel AI Gate
 
 - **Add a tool**: drop a file in `lib/tools/custom/`, export from `lib/tools/custom/index.ts`. Use `tool()` from `ai`, set `experimental_meta.slackStatusLabel` for the status indicator.
 - **Add an MCP server**: edit `lib/tools/custom/mcp-servers.ts`. Tools auto-appear prefixed by server name (e.g. server `mycompany` + tool `search` → `mycompany_search`).
-- **Change personality**: `lib/agent/system-prompt.ts`. Use `SYSTEM_PROMPT_OVERRIDE` env var only for short-term experimentation.
+- **Add a skill**: create `lib/skills/catalog/<name>/SKILL.md` (dir name must match frontmatter `name`), then run `pnpm skills:build`. `EKKO_ENABLED_SKILLS` is an optional opt-out filter. See `lib/skills/README.md`.
+- **Change personality**: edit the `persona` object in `lib/agent/persona.ts` (name, role, tone preset, traits, focus) — the forker-owned extension point. `lib/agent/system-prompt.ts` owns the framework rules; use `SYSTEM_PROMPT_OVERRIDE` env var only for short-term experimentation (it replaces the entire prompt, including formatting/safety rules).
 - **Adjust suggested prompts**: `lib/agent/suggested-prompts.ts`.
 - **Connect Composio toolkits**: Connect new services via the Composio dashboard or via the connect URL the agent sends in DM. Tools become available automatically on the next turn. `COMPOSIO_ENABLED_TOOLKITS` is an optional opt-out filter — leave it empty to allow all connected toolkits.
 - **Skip Composio entirely**: omit `COMPOSIO_API_KEY`; `getComposioTools()` returns `{}` and the thread-started handler skips connection enumeration. The bot still works with MCP, custom, and built-in tools.
@@ -62,6 +64,7 @@ The template is designed so personal forks can pull upstream improvements withou
 - `lib/tools/custom/*.ts` — your custom tools (delete `example.ts`, add your own)
 - `lib/tools/custom/index.ts` — barrel of your custom tools
 - `lib/tools/custom/mcp-servers.ts` — list of remote MCP servers to connect on every turn
+- `lib/skills/catalog/<name>/SKILL.md` — your skills (run `pnpm skills:build` after editing)
 - `lib/agent/persona.ts` — assistant personality and voice
 - `.env.local` (gitignored) — your secrets
 
@@ -75,6 +78,7 @@ If you find yourself wanting to edit any of these, the right move is to contribu
 - `lib/access.ts`
 - `lib/memory/**`
 - `lib/tools/{composio,builtin,registry}.ts`
+- `lib/skills/{loader,parse,tools,types,resources,bundle,artifact,export,snapshot}.ts` and `scripts/build-skills.mjs` — the skills runtime (the `catalog/` content is yours; the machinery is upstream-owned)
 - `app/api/**`
 - `vercel.ts`, `tsconfig.json`, `next.config.ts`, `next-env.d.ts`
 - `app/setup/**` — static landing page (upstream-owned)

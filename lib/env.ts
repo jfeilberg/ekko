@@ -29,6 +29,19 @@ const schema = z.object({
   EKKO_ACCESS_MODE: z.enum(['open', 'allowlist']).default('open'),
   EKKO_ALLOWED_USERS: toList,
   EKKO_ALLOWED_CHANNELS: toList,
+  // Optional opt-out filter for bundled skills. Empty/unset = all catalog
+  // skills in lib/skills/catalog/ are available. Set to a comma-separated list
+  // of skill names to restrict which ones the agent can use.
+  EKKO_ENABLED_SKILLS: toList,
+  // Max number of `always`/`keyword`-triggered skill bodies auto-injected into
+  // the system prompt per turn. Model-loaded skills (via load_skill) are not
+  // capped. 0 disables auto-injection entirely.
+  EKKO_MAX_ACTIVE_SKILLS: z.coerce.number().int().nonnegative().default(3),
+  // Server-side PDF export for design-system artifacts (runs headless Chromium
+  // in a Vercel Sandbox). 'auto' = enable when Vercel Sandbox credentials are
+  // present (VERCEL_OIDC_TOKEN, auto-injected on Vercel); 'on'/'off' to force.
+  // When unavailable, delivered HTML still self-exports to PDF via the browser.
+  EKKO_PDF_EXPORT: z.enum(['auto', 'on', 'off']).default('auto'),
 });
 
 export type Env = z.infer<typeof schema>;

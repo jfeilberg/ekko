@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document title — change me</title>
+
+  <!-- 1. Shared layers -->
+  <link rel="stylesheet" href="core/tokens.css">
+  <link rel="stylesheet" href="core/primitives.css">
+  <!-- 2. Medium engine: the DOCUMENT. Never also load deck-core.css (conflicting @page). -->
+  <link rel="stylesheet" href="core/doc-core.css">
+  <!-- 3. Brand pack -->
+  <link rel="stylesheet" href="brands/base/brand.css">
+  <!--
+    Paths are skill-root-relative (core/…, brands/…); render_artifact resolves
+    and inlines them into one self-contained file. The result prints to PDF from
+    the browser (Cmd/Ctrl-P → Save as PDF), or use the export_pdf tool.
+  -->
+</head>
+<body>
+  <div class="doc-stage">
+
+    <!-- COVER -->
+    <section class="doc-page doc-page--cover">
+      <div class="doc-cover-top">
+        <span class="doc-header__wordmark">Brand</span>
+        <span class="doc-header__meta">Confidential</span>
+      </div>
+      <div class="doc-cover-body">
+        <div class="doc-cover-rule"></div>
+        <div class="doc-cover-eyebrow">Document type · context</div>
+        <h1 class="doc-cover-title">The document title, stated plainly.</h1>
+        <p class="doc-cover-subtitle">One or two sentences on what this document is and who it is for.</p>
+        <div class="doc-cover-meta"><span>Month 2026</span><span>Version 1.0</span><span>Owner: Name</span></div>
+      </div>
+    </section>
+
+    <!-- TABLE OF CONTENTS -->
+    <section class="doc-page">
+      <header class="doc-header">
+        <span class="doc-header__wordmark">Brand</span>
+        <span class="doc-header__meta">Document title</span>
+      </header>
+      <div class="doc-body">
+        <div class="doc-section-header">
+          <span class="doc-section-num">—</span>
+          <h2 class="doc-section-title">Contents</h2>
+        </div>
+        <ol class="doc-toc">
+          <li><span class="doc-toc__num">01</span><a class="doc-toc__title" href="#s1">First section</a><span class="doc-toc__leader"></span></li>
+          <li><span class="doc-toc__num">02</span><a class="doc-toc__title" href="#s2">Second section</a><span class="doc-toc__leader"></span></li>
+        </ol>
+      </div>
+      <footer class="doc-footer">
+        <span class="doc-footer__note">Confidential. This material is proprietary.</span>
+        <span class="doc-footer__page"></span>
+      </footer>
+    </section>
+
+    <!-- CONTENT PAGE -->
+    <section class="doc-page" id="s1">
+      <header class="doc-header">
+        <span class="doc-header__wordmark">Brand</span>
+        <span class="doc-header__meta">Document title</span>
+      </header>
+      <div class="doc-body">
+        <div class="doc-section">
+          <div class="doc-section-header">
+            <span class="doc-section-num">01</span>
+            <h2 class="doc-section-title">First section</h2>
+          </div>
+          <p>Running text. Keep paragraphs short; the engine caps measure at 68ch.</p>
+          <h3 class="doc-h3">A sub-heading</h3>
+          <p>More text. Use the components from DOC-COMPONENTS.md: callouts, stats, numbered lists, tables, timelines, task lists.</p>
+          <div class="doc-callout doc-callout--accent">
+            <div class="doc-callout__label">Key point</div>
+            <p>A callout for the thing the reader must not miss.</p>
+          </div>
+        </div>
+      </div>
+      <footer class="doc-footer">
+        <span class="doc-footer__note">Confidential. This material is proprietary.</span>
+        <span class="doc-footer__page"></span>
+      </footer>
+    </section>
+
+  </div>
+  <!-- Optional: injects a floating "Save as PDF" button (hidden in print). Adjust path to core/... when copied into /docs/. -->
+  <script src="core/doc-runtime.js"></script>
+</body>
+</html>

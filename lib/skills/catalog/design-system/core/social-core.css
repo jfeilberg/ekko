@@ -1,0 +1,206 @@
+/* ============================================================
+   social-core.css — the SOCIAL engine
+   ------------------------------------------------------------
+   The third medium: fixed-size cards for social platforms.
+   Same token contract, same brand packs, same primitives —
+   different canvas + chrome.
+
+   Card sizes (96dpi px):
+     .social-card            1080×1350  LinkedIn/IG portrait (default)
+     .social-card--square    1080×1080  square posts
+     .social-card--landscape 1600×900   X/OG/banner
+
+   A multi-card file IS a carousel: print it (or scripts/
+   export.mjs) and you get one card per PDF page — exactly the
+   format LinkedIn expects for document posts. Single-card
+   artifacts can be screenshotted via scripts/contact-sheet.mjs
+   for PNG export.
+
+   Browser view: cards stacked on the surface, like documents.
+   Print view:   @page matches the card size, one card per page.
+
+   Load order (NEVER load deck-core or doc-core here):
+     tokens.css → primitives.css → social-core.css → brand (_house → sub)
+   Use doc-runtime.js for the floating Save-as-PDF button.
+   ============================================================ */
+
+:root {
+  --social-w: 1080px;
+  --social-h: 1350px;
+  --social-pad: 88px;
+}
+
+.social-stage {
+  background: var(--c-surface-2);
+  min-height: 100vh;
+  padding: 48px 24px;
+  box-sizing: border-box;
+}
+
+.social-card {
+  position: relative;
+  width: var(--social-w);
+  height: var(--social-h);
+  background: var(--c-surface);
+  color: var(--c-fg);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  margin: 0 auto 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.09);
+  padding: var(--social-pad);
+  display: flex;
+  flex-direction: column;
+}
+
+.social-card--square    { --social-h: 1080px; }
+.social-card--landscape { --social-w: 1600px; --social-h: 900px; --social-pad: 72px; }
+
+/* Dark variant — same grammar as the deck's dark section */
+.social-card--dark { background: var(--c-ink); color: var(--c-surface); }
+.social-card--dark .social-eyebrow,
+.social-card--dark .social-footer { color: color-mix(in srgb, var(--c-surface) 55%, transparent); }
+.social-card--dark .social-rule { background: var(--c-surface); }
+.social-card--dark h1, .social-card--dark h2, .social-card--dark h3,
+.social-card--dark p, .social-card--dark .social-title { color: var(--c-surface); }
+/* dark-card numerals stay paper for legibility (a monochrome brand's
+   accent can equal the dark background — same rule as the deck engine) */
+.social-card--dark .social-stat .v,
+.social-card--dark .social-list .n { color: var(--c-surface); }
+.social-card--dark .social-stat .k { color: color-mix(in srgb, var(--c-surface) 65%, transparent); }
+.social-card--dark .social-quote { color: var(--c-surface); }
+
+/* ---------- Chrome ---------- */
+.social-eyebrow {
+  font-size: 22px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin-bottom: 28px;
+}
+
+.social-rule { height: 1px; background: var(--c-fg); margin-bottom: 40px; }
+
+.social-footer {
+  margin-top: auto;
+  padding-top: 28px;
+  border-top: 1px solid var(--c-shade-24);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 20px;
+  color: var(--c-muted);
+}
+.social-footer img { height: 26px; width: auto; display: block; }
+.social-footer [data-slide-no] { font-variant-numeric: tabular-nums; }
+
+/* ---------- Type roles (card scale ≈ 1.5× deck scale) ---------- */
+.social-title {
+  font-family: var(--font-display);
+  font-size: 84px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+  margin: 0 0 32px;
+  text-wrap: balance;
+  color: var(--c-fg);
+}
+.social-title--hero { font-size: 110px; }
+
+.social-lede {
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1.35;
+  max-width: 24ch;
+  margin: 0 0 28px;
+  text-wrap: pretty;
+}
+
+.social-body p {
+  font-size: 27px;
+  line-height: 1.45;
+  margin: 0 0 20px;
+  max-width: 30ch;
+  text-wrap: pretty;
+}
+
+/* ---------- Big stat (one number that owns the card) ---------- */
+.social-stat { display: flex; flex-direction: column; gap: 16px; margin: auto 0; }
+.social-stat .v {
+  font-family: var(--font-display);
+  font-size: 220px;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: var(--c-accent);
+}
+.social-stat .k { font-size: 30px; color: var(--c-muted); max-width: 24ch; line-height: 1.35; }
+
+/* ---------- Numbered takeaway list ---------- */
+.social-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.social-list li {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 0;
+  padding: 30px 0;
+  border-bottom: 1px solid var(--c-shade-24);
+  align-items: baseline;
+}
+.social-list li:first-child { border-top: 1px solid var(--c-shade-24); }
+.social-list .n {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 300;
+  color: var(--c-accent);
+}
+.social-list .b { font-size: 28px; line-height: 1.4; }
+.social-list .b strong { font-weight: 500; }
+
+/* ---------- Quote card ---------- */
+.social-quote {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 300;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+  margin: auto 0;
+  text-wrap: balance;
+}
+.social-quote__attr { margin-top: 40px; font-size: 26px; color: var(--c-muted); }
+
+/* ---------- CTA block (closing card) ---------- */
+.social-cta { margin: auto 0; }
+.social-cta .social-title { margin-bottom: 24px; }
+.social-cta__line { font-size: 30px; color: var(--c-fg); }
+.social-cta__line .dim { color: var(--c-muted); }
+
+/* ---------- Charts from primitives.css re-scale per card ----------
+   Give .bar-chart an explicit height inline (e.g. style="height:520px")
+   and bump label sizes with the card-scale classes below. ---------- */
+.social-card .bar-chart__val { font-size: 44px; }
+.social-card .bar-chart__axis > * { font-size: 18px; }
+.social-card .hbar { grid-template-columns: 280px 1fr 140px; padding: 24px 0; }
+.social-card .hbar__label { font-size: 28px; }
+.social-card .hbar__val { font-size: 28px; }
+.social-card .hbar__track { height: 16px; }
+
+/* ============================================================
+   PRINT — one card per page = a LinkedIn-ready carousel PDF
+   ============================================================ */
+@page { size: 1080px 1350px; margin: 0; }
+
+@media print {
+  .doc-export { display: none !important; }
+  .social-stage { background: transparent !important; padding: 0 !important; }
+  .social-card {
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always; break-after: page;
+  }
+  .social-card:last-child { page-break-after: auto; break-after: auto; }
+  .social-card, .social-card * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

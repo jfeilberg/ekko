@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Base — the unbranded deck system</title>
+  <link rel="stylesheet" href="core/tokens.css">
+  <link rel="stylesheet" href="core/primitives.css">
+  <link rel="stylesheet" href="core/deck-core.css">
+  <link rel="stylesheet" href="brands/base/brand.css">
+</head>
+<body>
+  <div class="deck-stage">
+    <div class="deck-canvas" data-width="1600" data-height="900">
+
+      <!-- 01 · Cover -->
+      <section class="slide slide--title">
+        <div class="slide__rule-mid"></div><div class="slide__rule-bot"></div>
+        <div class="title-mark" style="top:300px;">Base</div>
+        <div class="title-block" style="top:560px;">
+          <div class="title-topic">The unbranded default. <em class="accent">One contract, any brand.</em></div>
+          <div class="title-date">Deck system · sample</div>
+        </div>
+        <div class="title-tagline">Monochrome, warm grey, open-licensed. Swap the palette and it is yours.</div>
+      </section>
+
+      <!-- 02 · The idea (DARK) -->
+      <section class="slide slide--dark">
+        <div class="slide__rule-top"></div><div class="slide__rule-bot"></div>
+        <div class="slide__header"><div class="slide__tracker"><span class="slash">/</span><span class="num">01</span>The idea</div><div class="slide__callout">Why a neutral base</div></div>
+        <div class="slide__body" style="display:flex; flex-direction:column; justify-content:center;">
+          <div class="section-num">01</div>
+          <div class="section-title">A brand is <em>only the tokens</em>.</div>
+        </div>
+        <div class="slide__footer"><div><div class="slide__footnote">One layout engine, one token contract. Re-skinned per brand, never rebuilt.</div></div><div class="slide__wordmark">Base</div></div>
+      </section>
+
+      <!-- 03 · What fills the contract -->
+      <section class="slide">
+        <div class="slide__rule-top"></div><div class="slide__rule-bot"></div>
+        <div class="slide__header"><div class="slide__tracker"><span class="slash">/</span><span class="num">02</span>The contract</div><div class="slide__callout">What a brand sets</div></div>
+        <div class="slide__body">
+          <h2 class="action-title">Four moves turn Base into <em class="accent">any brand.</em></h2>
+          <ol class="numlist" style="margin-top:44px;">
+            <li><div class="n">01</div><div class="b"><h3>Colour.</h3><p>Map the warm-grey ramp onto your palette. Set one accent to leave monochrome behind.</p></div></li>
+            <li><div class="n">02</div><div class="b"><h3>Type.</h3><p>Swap the Inter faces for your own. Display and body are two roles, one or two families.</p></div></li>
+            <li><div class="n">03</div><div class="b"><h3>Logo.</h3><p>Drop an SVG lockup in, or keep the plain text wordmark. Both are wired already.</p></div></li>
+            <li><div class="n">04</div><div class="b"><h3>Nothing else.</h3><p>The engine and every slide primitive re-skin with no other change.</p></div></li>
+          </ol>
+        </div>
+        <div class="slide__footer"><div><div class="slide__footnote">cp -r brands/base brands/&lt;newbrand&gt;, then edit one file.</div></div><div class="slide__wordmark">Base</div></div>
+      </section>
+
+      <!-- 04 · Stats -->
+      <section class="slide">
+        <div class="slide__rule-top"></div><div class="slide__rule-bot"></div>
+        <div class="slide__header"><div class="slide__tracker"><span class="slash">/</span><span class="num">03</span>By the numbers</div><div class="slide__callout">What ships</div></div>
+        <div class="slide__body" style="display:flex; flex-direction:column; justify-content:center;">
+          <h2 class="action-title" style="margin-bottom:56px;">Finished, and <em class="accent">free to ship.</em></h2>
+          <div class="stats">
+            <div><div class="v">1 file</div><div class="k">The whole brand pack: palette, type, components.</div></div>
+            <div><div class="v">OFL</div><div class="k">Every font openly licensed and self-hosted.</div></div>
+            <div><div class="v">0 deps</div><div class="k">No build step. Opens in any browser, prints to PDF.</div></div>
+          </div>
+        </div>
+        <div class="slide__footer"><div><div class="slide__footnote">Inter and JetBrains Mono, both SIL OFL, bundled for fully offline artifacts.</div></div><div class="slide__wordmark">Base</div></div>
+      </section>
+
+      <!-- 05 · Before / after -->
+      <section class="slide">
+        <div class="slide__rule-top"></div><div class="slide__rule-bot"></div>
+        <div class="slide__header"><div class="slide__tracker"><span class="slash">/</span><span class="num">04</span>The shift</div><div class="slide__callout">Fallback · Base</div></div>
+        <div class="slide__body">
+          <div class="beforeafter">
+            <div>
+              <h3>No brand linked</h3>
+              <h2>An implicit fallback.</h2>
+              <ul>
+                <li>System fonts that render differently on every machine.</li>
+                <li>A warning in the validator, not a choice.</li>
+                <li>Nothing to point a deck or a fork at.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Base</h3>
+              <h2>A deliberate default.</h2>
+              <ul>
+                <li>Self-hosted fonts, identical in browser and PDF.</li>
+                <li>A real, linkable, validator-clean pack.</li>
+                <li>The documented scaffold every new brand starts from.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="slide__footer"><div><div class="slide__footnote">Emphasis here is italic and weight only. No colour. That is what keeps it unbranded.</div></div><div class="slide__wordmark">Base</div></div>
+      </section>
+
+      <!-- 06 · Quote -->
+      <section class="slide">
+        <div class="slide__rule-top"></div><div class="slide__rule-bot"></div>
+        <div class="slide__header"><div class="slide__tracker"><span class="slash">/</span><span class="num">05</span>In one line</div><div class="slide__callout">What it is</div></div>
+        <div class="slide__body" style="display:flex; flex-direction:column; justify-content:center;">
+          <div class="bigquote">&ldquo;Neutral on purpose, not by accident.&rdquo;</div>
+          <div class="bigquote__attr">Monochrome &nbsp;·&nbsp; warm grey &nbsp;·&nbsp; open-licensed &nbsp;·&nbsp; one file</div>
+        </div>
+        <div class="slide__footer"><div><div class="slide__footnote">The explicit, finished version of neutral.</div></div><div class="slide__wordmark">Base</div></div>
+      </section>
+
+      <!-- 07 · Closing -->
+      <section class="slide slide--title">
+        <div class="slide__rule-mid"></div><div class="slide__rule-bot"></div>
+        <div class="title-mark" style="top:320px;">Base</div>
+        <div class="title-block" style="top:600px;">
+          <div class="title-topic">Start here. <span style="color:var(--c-fg);">Then make it yours.</span></div>
+          <div class="title-date">brands/base/</div>
+        </div>
+        <div class="title-tagline">One contract, any brand.</div>
+      </section>
+
+    </div>
+  </div>
+  <script src="core/deck-runtime.js"></script>
+</body>
+</html>

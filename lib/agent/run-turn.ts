@@ -12,6 +12,8 @@ import { builtinTools } from '../tools/builtin';
 import { customTools } from '../tools/custom';
 import { getMcpToolset } from '../tools/mcp';
 import { mergeTools } from '../tools/registry';
+import { getAvailableSkills, getAutoActiveSkills } from '../skills/loader';
+import { skillTools } from '../skills/tools';
 
 const HISTORY_LIMIT = 30;
 
@@ -72,7 +74,8 @@ export async function runTurn(input: TurnInput): Promise<void> {
       composio: composio as Record<string, Tool>,
       mcp: mcpToolset.tools as Record<string, Tool>,
       custom: customTools as Record<string, Tool>,
-      builtin: builtinTools() as Record<string, Tool>,
+      // Built-in Slack tools + the skills progressive-disclosure tool.
+      builtin: { ...builtinTools(), ...skillTools() } as Record<string, Tool>,
     });
 
     // --- Plan: in-bubble task cards ---
@@ -194,6 +197,8 @@ export async function runTurn(input: TurnInput): Promise<void> {
       channelId,
       currentDate: new Date().toISOString().slice(0, 10),
       toolNames: Object.keys(tools),
+      skillCatalog: getAvailableSkills().map((s) => ({ name: s.name, description: s.description })),
+      activeSkills: getAutoActiveSkills(userText).map((s) => ({ name: s.name, body: s.body })),
     });
 
     const agent = new ToolLoopAgent({

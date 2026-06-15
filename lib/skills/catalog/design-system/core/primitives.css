@@ -1,0 +1,157 @@
+/* ============================================================
+   primitives.css — CROSS-MEDIUM primitives
+   ------------------------------------------------------------
+   Pieces that work in ANY medium (deck, document, social):
+   emphasis helpers and charts. They consume only the token
+   contract (tokens.css) and contain no canvas/print rules, so
+   they can never collide with a medium engine's @page setup.
+
+   Link order in every artifact:
+     tokens.css → primitives.css → <medium>-core.css → brand
+   ============================================================ */
+
+/* ---------- Emphasis helpers (the house headline devices) ----------
+   Bold-then-dim:    <h2>Anchor. <span class="dim">extension.</span></h2>
+   Italic-accent:    <h2>The portfolio <em class="accent">in motion</em>.</h2> */
+.dim    { color: var(--c-muted); font-weight: 300; }
+.accent { color: var(--c-accent); }
+
+/* ============================================================
+   CHART — reusable, on-token, print-safe (no JS)
+   ------------------------------------------------------------
+   Column bars for comparisons/trends; horizontal bars (hbars)
+   for ranked lists or shares. Colours come from the contract;
+   highlight a key series with the --accent / --ink modifiers.
+   Bar size is driven by a --h (column) or --w (horizontal)
+   custom property set inline, e.g. style="--h:90%".
+   For line charts (J-curve etc.) use inline SVG with
+   style="stroke:var(--c-fg)" — see COMPONENTS.md.
+   ============================================================ */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-6);
+  height: 360px;
+  border-bottom: 1px solid var(--c-fg);
+}
+.bar-chart__col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+}
+.bar-chart__val {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--c-fg);
+}
+.bar-chart__bar {
+  width: 100%;
+  max-width: 140px;
+  height: var(--h, 50%);
+  background: var(--c-shade-24);
+}
+.bar-chart__bar--accent { background: var(--c-accent); }
+.bar-chart__bar--ink    { background: var(--c-fg); }
+.bar-chart__axis { display: flex; gap: var(--s-6); margin-top: 12px; }
+.bar-chart__axis > * {
+  flex: 1; text-align: center;
+  font-size: var(--fs-10); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--c-muted);
+}
+
+/* Donut — share-of-total, no JS. Set the split inline:
+     <div class="donut" style="--pct:62"> <div class="donut__label">62%</div> </div>
+   The accent wedge covers --pct percent; the remainder is a shade track. */
+.donut {
+  --pct: 50;
+  --donut-size: 220px;
+  --donut-thickness: 26px;
+  width: var(--donut-size);
+  height: var(--donut-size);
+  border-radius: 50%;
+  background: conic-gradient(var(--c-accent) calc(var(--pct) * 1%), var(--c-shade-12) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.donut::before {
+  content: "";
+  position: absolute;
+  inset: var(--donut-thickness);
+  border-radius: 50%;
+  background: var(--c-surface);
+}
+.donut__label {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  color: var(--c-fg);
+}
+
+/* Waterfall — bridge from a start bar to an end bar via floating deltas.
+   Set --base (bottom offset) and --h (height) on the COLUMN, both in %
+   of the chart height — the bar and the value label inherit them.
+     <div class="waterfall" style="height:360px">
+       <div class="waterfall__col" style="--base:0; --h:60%"><span class="waterfall__val">42</span><span class="waterfall__bar waterfall__bar--total"></span></div>
+       <div class="waterfall__col" style="--base:60%; --h:18%"><span class="waterfall__val">+13</span><span class="waterfall__bar"></span></div>
+       <div class="waterfall__col" style="--base:64%; --h:14%"><span class="waterfall__val">−10</span><span class="waterfall__bar waterfall__bar--neg"></span></div>
+       <div class="waterfall__col" style="--base:0; --h:64%"><span class="waterfall__val">45</span><span class="waterfall__bar waterfall__bar--total"></span></div>
+     </div> */
+.waterfall {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-5);
+  height: 360px;
+  border-bottom: 1px solid var(--c-fg);
+}
+.waterfall__col { flex: 1; position: relative; }
+.waterfall__bar {
+  position: absolute;
+  left: 0; right: 0;
+  margin: 0 auto;
+  max-width: 120px;
+  bottom: var(--base, 0);
+  height: var(--h, 30%);
+  background: var(--c-accent);
+}
+.waterfall__bar--neg   { background: var(--c-shade-24); }
+.waterfall__bar--total { background: var(--c-fg); }
+.waterfall__val {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--base, 0) + var(--h, 30%) + 10px);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--c-fg);
+}
+.waterfall__axis { display: flex; gap: var(--s-5); margin-top: 12px; }
+.waterfall__axis > * {
+  flex: 1; text-align: center;
+  font-size: var(--fs-10); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--c-muted);
+}
+
+/* Horizontal bars — ranked lists / shares */
+.hbars { display: flex; flex-direction: column; }
+.hbar {
+  display: grid;
+  grid-template-columns: 240px 1fr 110px;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--c-shade-24);
+}
+.hbar__label { font-size: var(--fs-18); color: var(--c-fg); }
+.hbar__label small { display: block; font-size: 12px; color: var(--c-muted); }
+.hbar__track { height: 10px; background: var(--c-shade-12); }
+.hbar__fill  { height: 100%; width: var(--w, 50%); background: var(--c-accent); }
+.hbar__val   { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; color: var(--c-fg); }

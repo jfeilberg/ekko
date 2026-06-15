@@ -7,6 +7,10 @@ export type PromptContext = {
   channelId: string;
   currentDate: string; // ISO yyyy-mm-dd
   toolNames: string[];
+  /** L1 metadata for every available skill (always shown to the model). */
+  skillCatalog?: { name: string; description: string }[];
+  /** L2 bodies for skills pre-activated this turn (always/keyword triggers). */
+  activeSkills?: { name: string; body: string }[];
 };
 
 // Baseline voice for every fork. Identity/personality belongs in the
@@ -72,22 +76,54 @@ already running. Focus tool suggestions on the productivity surface: email,
 calendar, documents, project management, communication, design, finance, CRM.
 `.trim();
 
+const SKILLS_RULE = `
+Skills are packaged instructions for specific tasks. The skills available to you
+are listed under <available_skills> with a name and a description of when to use
+each. When a request matches a skill, call the \`load_skill\` tool with its name
+to pull in the full instructions before acting, then follow them. Some skills may
+already be expanded below under <active_skill> — use those directly.
+`.trim();
+
+function renderSkillCatalog(catalog: { name: string; description: string }[]): string {
+  const items = catalog.map((s) => `- ${s.name}: ${s.description}`).join('\n');
+  return `<available_skills>\n${items}\n</available_skills>`;
+}
+
+function renderActiveSkill(skill: { name: string; body: string }): string {
+  return `<active_skill name="${skill.name}">\n${skill.body}\n</active_skill>`;
+}
+
 export function getSystemPrompt(ctx: PromptContext): string {
   const override = env().SYSTEM_PROMPT_OVERRIDE;
   if (override) return override;
 
   const persona = getPersona({ slackUserId: ctx.slackUserId, currentDate: ctx.currentDate });
 
-  return [
-    persona,
+  // Framework-owned rules sit ABOVE the (lower-trust, owner-editable) persona.
+  // The persona is wrapped in a delimiter so it can't bleed into / override the
+  // formatting, disclaimer, and tool rules.
+  const layers: string[] = [
+    `<persona>\n${persona}\n</persona>`,
     VOICE_RULES,
     FORMATTING_RULES,
     DISCLAIMER_RULE,
     TOOLS_RULE,
     MEMORY_RULE,
     INFRASTRUCTURE_RULE,
+  ];
+
+  if (ctx.skillCatalog?.length) {
+    layers.push(SKILLS_RULE, renderSkillCatalog(ctx.skillCatalog));
+  }
+  for (const skill of ctx.activeSkills ?? []) {
+    layers.push(renderActiveSkill(skill));
+  }
+
+  layers.push(
     ctx.toolNames.length
       ? `Available tools: ${ctx.toolNames.join(', ')}.`
       : 'No external tools are available this turn.',
-  ].join('\n\n');
+  );
+
+  return layers.join('\n\n');
 }

@@ -1,0 +1,129 @@
+/* ---------- Self-hosted variable fonts (SIL OFL, latin) ----------
+   Shipped in ./fonts/ so validate/bundle produce fully offline artifacts.
+   Inter carries the whole UI range (wght 100-900) and an italic axis;
+   JetBrains Mono is the code / eyebrow face. Both are SIL OFL, so this
+   pack is safe to open-source and redistribute. See ./fonts/README.md. */
+@font-face { font-family:"Inter"; font-style:normal; font-weight:300 700; font-display:swap; src:url("./fonts/inter-var.woff2") format("woff2"); }
+@font-face { font-family:"Inter"; font-style:italic; font-weight:300 700; font-display:swap; src:url("./fonts/inter-italic-var.woff2") format("woff2"); }
+@font-face { font-family:"JetBrains Mono"; font-style:normal; font-weight:400 500; font-display:swap; src:url("./fonts/jetbrains-mono-var.woff2") format("woff2"); }
+
+/* ============================================================
+   Base — brand pack (standalone, unbranded)
+   ------------------------------------------------------------
+   The white-label default for the deck system: a finished,
+   monochrome, warm-grey identity that looks deliberate (not
+   like a fallback) and ships only openly-licensed assets.
+
+   Use it three ways:
+     1. As-is, for decks that should NOT imply any company
+        (blind samples, white-label, internal drafts).
+     2. As the canonical scaffold for a new brand:
+        `cp -r brands/base brands/<newbrand>` and change the
+        palette + fonts + (optional) logo. Nothing else moves.
+     3. As the live reference for the token contract — every
+        --c-* role is mapped explicitly here, with comments.
+
+   Identity:
+     - Monochrome. --c-accent == --c-fg, so there is no chromatic
+       cue anywhere. Emphasis is carried by ITALIC + medium weight,
+       never by colour. This is what keeps it brand-neutral.
+     - Warm greyscale paper and ink (a faint red/yellow cast, not
+       clinical blue-grey).
+     - Inter for both display and body (one neutral grotesque in
+       two roles), JetBrains Mono for trackers / code.
+     - No logo image. The wordmark is plain text, set in Inter, via
+       the engine's generic `.title-mark` (cover) and
+       `.slide__wordmark` (footer). Swap the text per deck.
+
+   Load order in a deck (standalone — no house layer):
+     tokens.css → primitives.css → deck-core.css → brands/base/brand.css
+   ============================================================ */
+
+:root {
+  /* ---- raw Base palette (private; mapped onto the contract below) ----
+     A warm neutral grey ramp. Brands forking this file replace THIS
+     block and the contract mapping below; they touch nothing else. */
+  --base-paper:    #FFFFFF;   /* brightest plate (cards, print)        */
+  --base-surface:  #F6F4F1;   /* warm off-white page / slide ground    */
+  --base-surface-2:#ECE9E4;   /* faint depth on the surface            */
+  --base-ink:      #26241F;   /* warm charcoal — dark-slide ground     */
+  --base-fg:       #1B1A16;   /* warm near-black — text, rules, display */
+  --base-muted:    #8C887E;   /* warm grey — meta, footnotes, dim       */
+
+  /* ---- the contract (semantic names the engine reads) ---- */
+  --c-surface:    var(--base-surface);
+  --c-surface-2:  var(--base-surface-2);
+  --c-paper:      var(--base-paper);
+  --c-ink:        var(--base-ink);
+  --c-fg:         var(--base-fg);
+  --c-muted:      var(--base-muted);
+  --c-accent:     var(--base-fg);     /* MONO — accent is the ink itself */
+
+  /* Alpha tints of the warm ink, for hairlines & subtle fills */
+  --c-shade-12:   rgba(27, 26, 22, 0.12);
+  --c-shade-24:   rgba(27, 26, 22, 0.24);
+  --c-shade-64:   rgba(27, 26, 22, 0.64);
+
+  /* Component roles */
+  --c-border:     var(--c-shade-24);
+  --c-slate:      var(--c-ink);
+
+  /* ---- type ---- */
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Letterbox behind the scaled canvas — warm ink, never pure black */
+.deck-stage { background: var(--base-ink); }
+
+/* ============================================================
+   Type tuning for Inter
+   ------------------------------------------------------------
+   Inter sits a touch wide at display sizes; pull the tracking in
+   on the big marks so titles feel set, not defaulted. Running
+   text goes to 400 (Inter 300 reads thin at 18px on a projector).
+   ============================================================ */
+.title-mark    { font-weight: 500; letter-spacing: -0.035em; }
+.title-topic   { font-weight: 300; letter-spacing: -0.015em; }
+.section-num   { letter-spacing: -0.03em; }
+.section-title,
+.action-title  { letter-spacing: -0.012em; }
+.h-display     { letter-spacing: -0.025em; }
+
+.slide p,
+.beforeafter li,
+.phase-overview__delivs li { font-weight: 400; }
+
+/* Trackers, callouts, eyebrows and captions read as mono labels */
+.slide__tracker,
+.slide__callout,
+.caption,
+.hcard__eyebrow,
+.exec__num,
+.phase-overview__num { font-family: var(--font-mono); letter-spacing: 0.01em; }
+
+/* Footer wordmark — plain Inter, slightly tightened */
+.slide__wordmark { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; }
+
+/* ============================================================
+   Emphasis — MONO. No colour: italic + medium weight only.
+   This is the rule that keeps the pack unbranded; if you want a
+   chromatic accent, that is a NEW brand, not this one.
+   ============================================================ */
+.accent { color: var(--c-fg); font-weight: 500; }
+.action-title em,
+.section-title em,
+.title-topic em,
+.bigquote em,
+.accent { font-style: italic; }
+
+/* ============================================================
+   Dark slides — accent == ink would vanish on the dark ground,
+   so anything that paints with the accent flips to the surface.
+   ============================================================ */
+.slide--dark .accent,
+.slide--dark .statline .v,
+.slide--dark .stats .v { color: var(--c-surface); }
+.slide--dark .bar-chart__bar--accent,
+.slide--dark .hbar__fill { background: var(--c-surface); }

@@ -4,6 +4,20 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.0] — 2026-06-15
+
+**Agent Skills system.** Ekko can now load packaged, task-specific instructions on demand and render rich, self-contained artifacts.
+
+- **Progressive-disclosure skills** following the open `SKILL.md` standard. Each skill's L1 metadata (name + when-to-use) is always in the system prompt; the model pulls the full L2 body on demand via a new `load_skill` tool; L3 bundles ship resources (CSS, fonts, templates). Author a skill in `lib/skills/catalog/<name>/SKILL.md` and run `pnpm skills:build`. Three skills ship in the catalog: `design-system`, `email-triage`, `meeting-notes`.
+- **In-process render pipeline** — the bundled `design-system` skill turns requests ("turn this into an investor deck", "make a 5-card LinkedIn carousel", "a 100-day integration plan") into self-contained HTML artifacts (deck / document / social), posted to the Slack thread. Each artifact opens beautifully and self-exports to PDF in the browser.
+- **Optional server-side PDF export** via Vercel Sandbox (`EKKO_PDF_EXPORT=auto`, auto-enabled on Vercel via `VERCEL_OIDC_TOKEN`). The first export builds a reusable sandbox snapshot (~1 min); later exports are fast. When unavailable, the browser self-export path always works.
+- **`skill_cache` migration** (`migrations/0002_skill_cache.sql`) — optional, enables cross-instance snapshot reuse.
+- **Structured persona** in `lib/agent/persona.ts` (name / role / tone preset / traits / focus), wrapped in a `<persona>` delimiter so the (lower-trust, owner-editable) persona can never override the framework's formatting / safety / tool rules.
+- New env vars (all optional, sane defaults): `EKKO_ENABLED_SKILLS` (opt-out filter), `EKKO_MAX_ACTIVE_SKILLS` (default 3), `EKKO_PDF_EXPORT` (`auto`).
+- New dependency: `@vercel/sandbox`. New build step `skills:build` is wired into `dev`/`build`/`test`/`typecheck`.
+
+This release also folds in everything from 0.1.16–0.1.18 (Upstash auto-provisioning, the standard-Markdown + voice system-prompt rewrite, and the clack-style terminal UX).
+
 ## [0.1.18] — 2026-06-15
 
 Terminal UX overhaul. Both CLIs (`create-ekko-agent` and `pnpm bootstrap`) now render with [`@clack/prompts`](https://github.com/bombshell-dev/clack) + `picocolors`, matching the clean gutter-rail aesthetic of vercel-labs/skills.

@@ -1,0 +1,213 @@
+/* ============================================================
+   tokens.css — THE BRAND CONTRACT
+   ------------------------------------------------------------
+   This file defines the complete set of design tokens that the
+   layout engine (deck-core.css) consumes, plus a neutral
+   greyscale default so the system renders on its own.
+
+   A brand pack (brands/<brand>/brand.css) re-declares the
+   --c-* color tokens and --font-sans (and ships its @font-face)
+   to re-skin the entire system. A brand should ONLY need to
+   touch the tokens in the "BRAND-OVERRIDABLE" section below.
+   Everything else (type scale, spacing, motion) is shared
+   structure and rarely changes per brand.
+
+   Token groups:
+     1. Color contract        (--c-*)        ← brands override
+     2. Type family           (--font-*)     ← brands override
+     3. Type scale            (--fs-*, --lh-*)
+     4. Spacing scale         (--s-*)
+     5. Rules / radii / motion
+   The contract is documented in reference/BRAND-PACK.md.
+   ============================================================ */
+
+:root {
+  /* ========================================================
+     1. COLOR CONTRACT  — BRAND-OVERRIDABLE
+     --------------------------------------------------------
+     Semantic, brand-neutral names. No brand should reference
+     another brand's raw palette; brands fill THESE names.
+     Defaults below are a neutral warm greyscale.
+     ======================================================== */
+  --c-surface:    #F6F5F3;   /* primary page/slide background      */
+  --c-surface-2:  #EEECE8;   /* faint depth on the surface         */
+  --c-paper:      #FFFFFF;   /* brightest plate (cards, print)     */
+  --c-ink:        #232320;   /* dark surface (section/dark slides) + secondary fill */
+  --c-fg:         #111110;   /* primary text, rules, display type  */
+  --c-muted:      #9A9A92;   /* meta, footnotes, dim extensions    */
+  --c-accent:     var(--c-fg);  /* brand accent — big numerals, slide no., .accent.
+                                   Defaults to fg so neutral/mono brands stay monochrome;
+                                   a brand sets this to its signature colour.            */
+
+  /* Alpha tints of the ink, for hairlines & subtle fills */
+  --c-shade-12:   rgba(17,17,16,0.12);
+  --c-shade-24:   rgba(17,17,16,0.24);
+  --c-shade-64:   rgba(17,17,16,0.64);
+
+  /* Component roles (neutral defaults fall back to the tokens above;
+     a brand may give them their own values — e.g. softer card
+     borders and a distinct secondary text colour) */
+  --c-border:     var(--c-shade-24);  /* card / component hairline        */
+  --c-slate:      var(--c-ink);       /* secondary text inside components */
+
+  /* ========================================================
+     2. TYPE FAMILY  — BRAND-OVERRIDABLE
+     --------------------------------------------------------
+     Two roles: --font-display for titles/headlines/big numerals,
+     --font-sans for body/meta/labels. A brand may set them to
+     the same family or two different ones (e.g. a display face
+     paired with a separate body face). Defaults are a
+     neutral system grotesque.
+     ======================================================== */
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                  system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ========================================================
+     3. TYPE SCALE  (px values, deck canvas = 1600x900)
+     ======================================================== */
+  --fs-10: 10px;   /* fine print, captions            */
+  --fs-14: 14px;   /* small UI label                  */
+  --fs-18: 18px;   /* body / running text             */
+  --fs-19: 19px;   /* lockup / section label          */
+  --fs-28: 28px;   /* action title (content headline) */
+  --fs-40: 40px;   /* deck topic                      */
+  --fs-48: 48px;   /* display / wordmark              */
+
+  --lh-tight: 1.00;  /* display, single-line */
+  --lh-snug:  1.15;
+  --lh-body:  1.35;
+  --lh-prose: 1.50;
+
+  /* ========================================================
+     4. SPACING SCALE  (8-pt grid, deck scale)
+     ======================================================== */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 80px;    /* slide outer margin */
+  --s-10: 120px;
+
+  /* ========================================================
+     5. RULES / RADII / MOTION
+     ======================================================== */
+  --rule-w:      1px;     /* every line in the system is a 1px hairline */
+  --radius-0:    0;       /* the system is square — almost no radii      */
+  --radius-sm:   0;       /* small chips/buttons — brands may soften (e.g. 6px)      */
+  --radius-card: 0;       /* cards — brands may soften (e.g. 12px)                    */
+  --radius-pill: 999px;   /* tag pills only, used sparingly              */
+  --ease:        cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-fast:    120ms;
+  --dur-base:    240ms;
+  --dur-slow:    480ms;
+}
+
+/* ============================================================
+   BASE ELEMENTS — consume the contract, brand-neutral
+   ============================================================ */
+html { color-scheme: light; }
+
+body {
+  margin: 0;
+  background: var(--c-surface);
+  color: var(--c-fg);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: var(--fs-18);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.h-display, h1.h-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+  color: var(--c-fg);
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--fs-40);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  color: var(--c-fg);
+  margin: 0;
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--fs-28);
+  line-height: 1.20;
+  letter-spacing: -0.005em;
+  color: var(--c-fg);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: var(--fs-19);
+  line-height: var(--lh-snug);
+  color: var(--c-fg);
+  margin: 0;
+}
+
+p, .p {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: var(--fs-18);
+  line-height: var(--lh-body);
+  color: var(--c-fg);
+  text-wrap: pretty;
+  margin: 0;
+}
+
+/* Meta — slide tracker, call-out, footnote */
+.meta {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: var(--fs-18);
+  line-height: var(--lh-tight);
+  color: var(--c-muted);
+  letter-spacing: 0;
+}
+
+/* Caption — micro meta (page numbers, fine print) */
+.caption, small {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: var(--fs-10);
+  line-height: var(--lh-snug);
+  color: var(--c-muted);
+  letter-spacing: 0.02em;
+}
+
+code, .code {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.92em;
+  color: var(--c-ink);
+  background: var(--c-surface-2);
+  padding: 0.1em 0.35em;
+  border-radius: 0;
+}
+
+/* Emphasis — used sparingly; the system leans on scale + space */
+strong, b { font-weight: 500; }
+em { font-style: italic; }
+
+hr, .rule { border: 0; border-top: var(--rule-w) solid var(--c-fg); margin: 0; }
+.rule-soft { border-top-color: var(--c-shade-24); }

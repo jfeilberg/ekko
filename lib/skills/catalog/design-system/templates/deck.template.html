@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deck title — change me</title>
+
+  <!-- 1. Brand-neutral core (never edit per brand) -->
+  <link rel="stylesheet" href="core/tokens.css">
+  <link rel="stylesheet" href="core/primitives.css">
+  <link rel="stylesheet" href="core/deck-core.css">
+  <!-- 2. Brand pack — the included neutral default. Point this at any pack under brands/. -->
+  <link rel="stylesheet" href="brands/base/brand.css">
+  <!--
+    NOTE on paths: assets are referenced skill-root-relative (core/…, brands/…).
+    Keep them that way — the render_artifact tool resolves them, embeds the fonts,
+    and delivers ONE self-contained file.
+  -->
+</head>
+<body>
+  <div class="deck-stage">
+    <div class="deck-canvas" data-width="1600" data-height="900">
+
+      <!-- TITLE -->
+      <section class="slide slide--title">
+        <div class="slide__rule-mid"></div>
+        <div class="slide__rule-bot"></div>
+        <div class="title-mark">Brand<span class="title-mark__c">©</span></div>
+        <div class="title-topic" style="top:600px; max-width:700px;">The one-line topic of this deck.</div>
+        <div class="title-date" style="top:700px;">Month 2026</div>
+        <div class="title-tagline">A short framing line. N minutes.</div>
+      </section>
+
+      <!-- CONTENT (copy primitives from reference/COMPONENTS.md) -->
+      <section class="slide">
+        <div class="slide__rule-top"></div>
+        <div class="slide__rule-bot"></div>
+        <div class="slide__header">
+          <div class="slide__tracker"><span class="slash">/</span><span class="num">01</span>Section</div>
+          <div class="slide__callout">Callout</div>
+        </div>
+        <div class="slide__body">
+          <h2 class="action-title">Your claim. <span class="dim">Its dim extension.</span></h2>
+        </div>
+        <div class="slide__footer">
+          <div><div class="slide__footnote">Source / caption</div></div>
+          <div class="slide__wordmark">Brand ©</div>
+        </div>
+      </section>
+
+      <!-- CLOSING -->
+      <section class="slide slide--title">
+        <div class="slide__rule-mid"></div>
+        <div class="slide__rule-bot"></div>
+        <div class="title-mark" style="top:320px;">Thank<br>you.</div>
+        <!-- title-block: subtitle + date flow with a gap (no overlap) and stay left of the centre rule. Keep subtitle to ~2 lines. -->
+        <div class="title-block" style="top:632px;">
+          <div class="title-topic">Reach out: <span style="color:var(--c-fg);">name@firm.com</span></div>
+          <div class="title-date">firm.com</div>
+        </div>
+        <div class="title-tagline">The tagline, repeated.</div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="core/deck-runtime.js"></script>
+</body>
+</html>

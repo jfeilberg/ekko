@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carousel title — change me</title>
+
+  <!-- 1. Shared layers -->
+  <link rel="stylesheet" href="core/tokens.css">
+  <link rel="stylesheet" href="core/primitives.css">
+  <!-- 2. Medium engine: SOCIAL. Never also load deck-core or doc-core (conflicting @page). -->
+  <link rel="stylesheet" href="core/social-core.css">
+  <!-- 3. Brand pack -->
+  <link rel="stylesheet" href="brands/base/brand.css">
+  <!--
+    Paths are skill-root-relative (core/…, brands/…); render_artifact resolves
+    and inlines them. Deliver with render_artifact (HTML) or export_pdf.
+    A multi-card file prints to one card per PDF page (LinkedIn document post)
+    from the browser or via export_pdf. Keep ONE card size per file — @page
+    prints every page at the same size.
+  -->
+</head>
+<body>
+  <div class="social-stage">
+
+    <!-- HOOK (card 1 carries the scroll-stop) -->
+    <section class="social-card">
+      <div class="social-eyebrow">Eyebrow · context</div>
+      <div class="social-rule"></div>
+      <h1 class="social-title social-title--hero">The hook. <span class="dim">Dim extension.</span></h1>
+      <div class="social-footer">
+        <span>@handle</span>
+        <span data-slide-no></span>
+      </div>
+    </section>
+
+    <!-- BODY CARD (one idea per card) -->
+    <section class="social-card">
+      <div class="social-eyebrow">Eyebrow</div>
+      <div class="social-rule"></div>
+      <h2 class="social-title">One claim.</h2>
+      <div class="social-body">
+        <p>Two or three short sentences that earn the swipe to the next card.</p>
+      </div>
+      <div class="social-footer">
+        <span>@handle</span>
+        <span data-slide-no></span>
+      </div>
+    </section>
+
+    <!-- STAT CARD -->
+    <section class="social-card social-card--dark">
+      <div class="social-eyebrow">The number</div>
+      <div class="social-stat">
+        <div class="v">6 d</div>
+        <div class="k">What this number means, in one line.</div>
+      </div>
+      <div class="social-footer">
+        <span>@handle</span>
+        <span data-slide-no></span>
+      </div>
+    </section>
+
+    <!-- CTA (closing card) -->
+    <section class="social-card">
+      <div class="social-eyebrow">Next step</div>
+      <div class="social-rule"></div>
+      <div class="social-cta">
+        <h2 class="social-title">The ask.</h2>
+        <p class="social-cta__line">Follow for more. <span class="dim">Or reach out: name@firm.com</span></p>
+      </div>
+      <div class="social-footer">
+        <span>@handle</span>
+        <span data-slide-no></span>
+      </div>
+    </section>
+
+  </div>
+  <!-- Optional: floating "Save as PDF" button + card numbering -->
+  <script src="core/doc-runtime.js"></script>
+</body>
+</html>

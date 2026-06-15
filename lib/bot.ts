@@ -133,10 +133,10 @@ function registerHandlers(chat: EkkoChat): void {
       try {
         await slackAdapter.postMessage(
           threadId,
-          "I have no tools connected to your account yet. Just say what you need — " +
-          "*'connect Gmail'*, *'connect Linear'*, *'connect Notion'* — and I'll generate a one-click " +
-          "authorization link scoped to your Slack user. (Connecting via dashboard.composio.dev directly " +
-          "binds the connection to a different identity and I won't see it.)"
+          "I have no tools connected to your account yet. Just say what you need " +
+          "(\"connect Gmail\", \"connect Linear\", \"connect Notion\") and I'll send back a one-click " +
+          "authorization link scoped to your Slack user. (Connecting through dashboard.composio.dev " +
+          "directly binds to a different identity and I won't see it.)"
         );
       } catch (err) {
         log.warn({ err }, 'assistant_thread_composio_hint_failed');

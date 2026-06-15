@@ -4,6 +4,16 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.17] — 2026-06-15
+
+Tone-of-voice + Slack formatting overhaul of the system prompt.
+
+- **Fix (formatting, important)**: the formatting rules were backwards for the streaming path. Agent replies are posted via `thread.post(result.fullStream)`, which the Chat SDK wraps as `{ markdown }` → Slack's `markdown_text` block → **standard Markdown** rendering. The old rules told the model to emit *legacy mrkdwn* (`*single-asterisk bold*`, `<url|label>` links, `~strike~`), which on that path renders as italic, literal text, etc. Rewrote `FORMATTING_RULES` to instruct standard Markdown (`**bold**`, `[label](url)`, `-`/`1.` lists, `>` quotes), with two Slack-specific rules: never use Markdown tables (Slack renders none — use a bulleted list with bold labels), and skip headings in favor of a short bold line. Hand-written `chat.postMessage` copy stays on the mrkdwn path and is unchanged.
+- **New**: `VOICE_RULES` in the system prompt, synthesized from a GTM "humanizer" voice guide. Lead with the answer; short sentences, plain words; no em dashes; no AI throat-clearing ("I hope this helps", "Great question", "As an AI"); no hype words (seamless, leverage, unlock, elevate, …); one point per message; match length to the ask; emoji only when it carries meaning. Format lightly — most replies need no formatting at all.
+- **Polish**: removed em dashes from the disclaimer rule and from the agent-sent welcome / onboarding copy (the no-tools-connected hint and the install welcome DM), so the product's own voice matches what it asks the agent to do. Refined the default persona to "a direct, competent teammate" rather than "a helpful assistant."
+- Added `lib/agent/system-prompt.test.ts` to guard the new rules (standard-Markdown instruction, no-tables rule, voice rules, tool-list assembly) against regressions.
+- `CLAUDE.md` "Do not" note corrected to explain the two Slack render paths precisely.
+
 ## [0.1.16] — 2026-06-13
 
 - **Docs**: new README section "Working with Vercel env vars — footguns to know" documenting (a) `vercel env add` via piped stdin silently writes empty (use `--value --force --yes`), and (b) Sensitive env vars come back empty from `vercel env pull` by design (expected Vercel behavior, surprising for local debug).

@@ -504,8 +504,8 @@ async function main() {
   if (installerId) {
     const dmSpinner = spinner('Sending welcome DM…');
     const toolsLine = composioConfigured
-      ? 'Composio is plugged in 🔌. To connect any toolkit (Gmail, Linear, Notion, …), *just ask me* — e.g. "connect Gmail" or "connect Linear" — and I\'ll generate a one-click authorization link tied to *your* Slack user. (Connecting via dashboard.composio.dev directly will bind to a different identity and I won\'t see it.)'
-      : 'To unlock 1000+ external tools, grab a Composio API key at <https://dashboard.composio.dev>, add it as `COMPOSIO_API_KEY` to your Vercel env, and redeploy. Then just ask me to connect what you need.';
+      ? 'Composio is plugged in 🔌. To connect any toolkit (Gmail, Linear, Notion, and more), *just ask me*. Say "connect Gmail" and I\'ll send back a one-click authorization link tied to *your* Slack user. (Connecting through dashboard.composio.dev directly binds to a different identity and I won\'t see it.)'
+      : 'Want me to use 1000+ external tools? Grab a Composio API key at <https://dashboard.composio.dev>, add it as `COMPOSIO_API_KEY` to your Vercel env, and redeploy. Then just ask me to connect what you need.';
     const welcomeText = [
       '👋 *Welcome to Ekko!*',
       '',

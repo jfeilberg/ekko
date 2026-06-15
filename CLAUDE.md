@@ -50,7 +50,7 @@ Next.js 16 App Router · TypeScript strict · Vercel AI SDK v6 · Vercel AI Gate
 
 - Bypass HMAC verification.
 - Commit secrets. `.env.local` is gitignored.
-- Use raw Markdown in Slack output. Use mrkdwn or the `markdown` block element.
+- Mismatch the Slack render path. Streamed agent output (`thread.post(result.fullStream)`) is sent as `markdown_text` (Slack's `markdown` block) and renders **standard Markdown** — that's what `lib/agent/system-prompt.ts` instructs the model to emit. Hand-written `thread.post("string")` / `chat.postMessage` copy is sent as `{ text }` and renders **legacy mrkdwn** (`*bold*`, `<url|label>`). Use the right syntax for the path; never tables (Slack renders none).
 - Add an admin UI without first considering whether Slack is the right surface.
 
 ## Extension-point discipline (for personal forks)

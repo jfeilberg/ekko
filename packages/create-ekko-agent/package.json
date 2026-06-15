@@ -1,6 +1,6 @@
 {
   "name": "create-ekko-agent",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Scaffold a Slack-native AI agent in one command.",
   "type": "module",
   "bin": {
@@ -19,5 +19,9 @@
   "homepage": "https://github.com/jfeilberg/ekko",
   "bugs": "https://github.com/jfeilberg/ekko/issues",
   "license": "MIT",
-  "author": "Jonathan R. Feilberg"
+  "author": "Jonathan R. Feilberg",
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "picocolors": "^1.1.1"
+  }
 }

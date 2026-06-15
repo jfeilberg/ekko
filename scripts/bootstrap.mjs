@@ -12,8 +12,6 @@
 //   8. Updates Slack manifest with production URL via apps.manifest.update
 //   9. Prints summary + "DM Ekko in Slack" instructions
 
-import readline from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
@@ -22,159 +20,99 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { parse as parseYaml } from 'yaml';
-import { styleText } from 'node:util';
+import * as p from '@clack/prompts';
+import pc from 'picocolors';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
-const rl = readline.createInterface({ input: stdin, output: stdout });
-// Every interactive prompt is prefixed with ❯ so the user can distinguish
-// "waiting on you" from "running/loading." Critical UX cue when sandwiched
-// between spinners and background CLI output.
-const ask = (q) => rl.question(`  ${styleText('cyan', '❯')} ${q}`);
-
-// ---- UI helpers ----
-
-const c = {
-  primary: (s) => styleText(['cyan', 'bold'], s),
-  dim: (s) => styleText('gray', s),
-  ok: (s) => styleText('green', s),
-  warn: (s) => styleText('yellow', s),
-  err: (s) => styleText('red', s),
-  step: (s) => styleText('cyan', s),
-};
-
-const ui = {
-  banner(title, subtitle) {
-    const line = '─'.repeat(56);
-    console.log();
-    console.log(c.primary(line));
-    console.log(`  ${c.primary(title)}`);
-    if (subtitle) console.log(`  ${c.dim(subtitle)}`);
-    console.log(c.primary(line));
-    console.log();
-  },
-  step(n, total, label) {
-    console.log();
-    console.log(`${c.step(`▸ Step ${n}/${total}`)}  ${c.primary(label)}`);
-  },
-  info(s)  { console.log(`  ${c.dim(s)}`); },
-  say(s)   { console.log(`  ${s}`); },
-  ok(s)    { console.log(`  ${c.ok('✓')} ${s}`); },
-  warn(s)  { console.log(`  ${c.warn('⚠')} ${s}`); },
-  err(s)   { console.error(`  ${c.err('✗')} ${s}`); },
-  done(title, lines) {
-    console.log();
-    console.log(`  ${c.ok('✓')} ${c.primary(title)}`);
-    for (const l of lines) console.log(`    ${c.dim(l)}`);
-    console.log();
-  },
-};
-
-function spinner(label) {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  const start = Date.now();
-  let i = 0;
-  let active = true;
-  const id = setInterval(() => {
-    if (!active) return;
-    const elapsed = Math.floor((Date.now() - start) / 1000);
-    const time = elapsed >= 1 ? c.dim(` (${elapsed}s)`) : '';
-    process.stdout.write(`\r  ${c.primary(frames[i])} ${label}${time}`);
-    i = (i + 1) % frames.length;
-  }, 80);
-  const clear = () => {
-    active = false;
-    clearInterval(id);
-    process.stdout.write(`\r${' '.repeat(label.length + 16)}\r`);
-  };
-  return {
-    stop(finalMsg) { clear(); if (finalMsg) ui.ok(finalMsg); },
-    fail(finalMsg) { clear(); if (finalMsg) ui.err(finalMsg); },
-  };
+// Cancel any clack prompt result that signals the user pressed Ctrl-C.
+function bail(value) {
+  if (p.isCancel(value)) {
+    p.cancel('Setup cancelled.');
+    process.exit(0);
+  }
+  return value;
 }
 
 function abort(msg) {
-  ui.err(msg);
+  p.log.error(msg);
   process.exit(1);
 }
 
 async function main() {
-  ui.banner('Ekko setup', 'fresh clone → working bot in Slack, ~3 minutes');
-  ui.say('This will:');
-  ui.info('1. Provision Neon Postgres + Upstash Redis');
-  ui.info('2. Create Slack app from manifest');
-  ui.info('3. OAuth install in your workspace');
-  ui.info('4. Write env vars to Vercel');
-  ui.info('5. Deploy to production');
-  ui.info('6. Apply schema migrations');
-  ui.info('7. Update Slack manifest with production URL');
-  console.log();
-  ui.say(c.dim('Prerequisites: vercel CLI logged in. Slack workspace where you can install apps.'));
-  console.log();
+  p.intro(pc.bgCyan(pc.black(' ekko setup ')));
+  p.log.message(pc.dim('fresh clone → working bot in Slack, ~3 minutes'));
+  p.log.message(pc.dim('Prerequisites: vercel CLI logged in. Slack workspace where you can install apps.'));
 
   // Auto-detect vercel CLI. If not on PATH, fall back to `npx -y vercel` — handles
   // the "just ran `npm i -g vercel` but the shell hasn't refreshed PATH" case
   // gracefully (open-new-terminal / hash -r is the manual workaround).
   VERCEL = (await which('vercel')) ? ['vercel'] : ['npx', '-y', 'vercel'];
   if (VERCEL[0] === 'npx') {
-    ui.info('vercel CLI not on PATH — using `npx vercel` (downloads on first use).');
+    p.log.info('vercel CLI not on PATH — using `npx vercel` (downloads on first use).');
   }
 
   // Verify .vercel/project.json exists; if missing, run `vercel link` interactively.
   if (!existsSync(path.join(projectRoot, '.vercel/project.json'))) {
-    ui.warn('Not linked to a Vercel project. Running `vercel link`…');
-    ui.info('Vercel will ask 3–4 questions (scope, link-or-create, project name).');
-    ui.info('Press Enter to accept defaults each time.');
-    console.log();
+    p.log.warn('Not linked to a Vercel project. Running `vercel link`…');
+    p.log.step('Linking to Vercel');
+    p.log.message(pc.dim('Vercel will ask a few questions; press Enter for defaults.'));
     await new Promise((resolve, reject) => {
-      const p = spawnVercel(['link'], { cwd: projectRoot, stdio: 'inherit' });
-      p.on('close', (code) => (code === 0 ? resolve() : reject(new Error('vercel link failed'))));
-      p.on('error', reject);
+      const proc = spawnVercel(['link'], { cwd: projectRoot, stdio: 'inherit' });
+      proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error('vercel link failed'))));
+      proc.on('error', reject);
     });
     if (!existsSync(path.join(projectRoot, '.vercel/project.json'))) {
       abort('vercel link did not complete. Please run it manually and try again.');
     }
   }
 
-  const proceed = (await ask('Continue? (y/N) ')).trim().toLowerCase();
-  if (proceed !== 'y') process.exit(0);
+  const go = bail(await p.confirm({ message: 'Continue?', initialValue: true }));
+  if (!go) {
+    p.cancel('Setup cancelled.');
+    process.exit(0);
+  }
 
   // ---- Step 1: Provision Neon Postgres ----
-  ui.step(1, 7, 'Provision Neon Postgres');
+  p.log.step('Step 1/7  Provision Neon Postgres');
   const hasDatabaseUrl = await vercelEnvExists('DATABASE_URL');
   if (hasDatabaseUrl) {
-    ui.ok('DATABASE_URL already set — skipping Neon provisioning.');
+    p.log.success('DATABASE_URL already set — skipping Neon provisioning.');
   } else {
-    ui.info('Ekko needs a Postgres database for memory and user state.');
-    ui.info('Neon (free tier, auto-suspends, pgvector built in) is the default.');
-    console.log();
-    const wantNeon = (await ask('Provision Neon Postgres via Vercel Marketplace? (Y/n) ')).trim().toLowerCase();
-    if (wantNeon !== 'n') {
+    p.log.info('Ekko needs a Postgres database for memory and user state.');
+    p.log.message(pc.dim('Neon (free tier, auto-suspends, pgvector built in) is the default.'));
+
+    const provisionNeon = bail(await p.confirm({
+      message: 'Provision Neon Postgres via Vercel Marketplace?',
+      initialValue: true,
+    }));
+    if (provisionNeon) {
       // Try CLI first — `vercel integration add neon` provisions + connects + pulls env all in one go.
-      const cliSpinner = spinner('Provisioning Neon via Vercel CLI…');
+      const s = p.spinner();
+      s.start('Provisioning Neon via Vercel CLI…');
       const cliOk = await tryVercelIntegrationAdd('neon');
       if (cliOk) {
-        cliSpinner.stop('Neon provisioned and DATABASE_URL injected');
+        s.stop('Neon provisioned and DATABASE_URL injected');
       } else {
         // Fall back to browser flow (first-ever Marketplace use may need legal-terms acceptance in browser).
-        cliSpinner.fail('CLI provisioning unavailable — falling back to browser');
-        ui.info('Opening https://vercel.com/marketplace/neon …');
-        ui.info('Click "Add Integration", select this Vercel project, complete the flow.');
+        s.stop('CLI provisioning unavailable — falling back to browser', 1);
+        p.log.info('Opening https://vercel.com/marketplace/neon …');
+        p.log.message(pc.dim('Click "Add Integration", select this Vercel project, complete the flow.'));
         const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
         spawn(opener, ['https://vercel.com/marketplace/neon'], { detached: true, stdio: 'ignore' });
-        await ask('Press Enter once Neon is connected and DATABASE_URL is set… ');
+        bail(await p.confirm({ message: 'Connected Neon and set DATABASE_URL?', initialValue: true }));
         const confirmed = await vercelEnvExists('DATABASE_URL');
         if (!confirmed) {
-          ui.warn('DATABASE_URL still not detected. Set it manually with `vercel env add DATABASE_URL production` and run `pnpm db:push` after deploy.');
+          p.log.warn('DATABASE_URL still not detected. Set it manually with `vercel env add DATABASE_URL production` and run `pnpm db:push` after deploy.');
         } else {
-          ui.ok('DATABASE_URL confirmed.');
+          p.log.success('DATABASE_URL confirmed.');
         }
       }
     } else {
-      ui.info('Skipped. Set DATABASE_URL manually before deploying:');
-      ui.info('  vercel env add DATABASE_URL production');
-      ui.info('  Then run `pnpm db:push` after deploy.');
+      p.log.message(pc.dim('Skipped. Set DATABASE_URL manually before deploying:'));
+      p.log.message(pc.dim('  vercel env add DATABASE_URL production'));
+      p.log.message(pc.dim('  Then run `pnpm db:push` after deploy.'));
     }
   }
 
@@ -184,49 +122,55 @@ async function main() {
   // per-instance only and thread-follow silently breaks across Fluid Compute
   // instances (the user mentions Ekko, gets a reply, replies in-thread, and
   // nothing happens because the subscription is in a different instance).
-  console.log();
   const hasRedisUrl = await vercelEnvExists('REDIS_URL');
   if (hasRedisUrl) {
-    ui.ok('REDIS_URL already set — skipping Upstash provisioning.');
+    p.log.success('REDIS_URL already set — skipping Upstash provisioning.');
   } else {
-    ui.info('Ekko uses Redis for thread-follow + event dedup across deploy instances.');
-    ui.info('Upstash for Redis (free tier, 10k commands/day, 256MB) is the default.');
-    console.log();
-    const wantRedis = (await ask('Provision Upstash Redis via Vercel Marketplace? (Y/n) ')).trim().toLowerCase();
-    if (wantRedis !== 'n') {
-      const cliSpinner = spinner('Provisioning Upstash Redis via Vercel CLI…');
+    p.log.info('Ekko uses Redis for thread-follow + event dedup across deploy instances.');
+    p.log.message(pc.dim('Upstash for Redis (free tier, 10k commands/day, 256MB) is the default.'));
+
+    const provisionRedis = bail(await p.confirm({
+      message: 'Provision Upstash Redis via Vercel Marketplace?',
+      initialValue: true,
+    }));
+    if (provisionRedis) {
+      const s = p.spinner();
+      s.start('Provisioning Upstash Redis via Vercel CLI…');
       // Slug per `vercel integration discover redis` → "Upstash for Redis"
       const cliOk = await tryVercelIntegrationAdd('upstash/upstash-kv');
       if (cliOk) {
-        cliSpinner.stop('Upstash Redis provisioned and REDIS_URL injected');
+        s.stop('Upstash Redis provisioned and REDIS_URL injected');
       } else {
-        cliSpinner.fail('CLI provisioning unavailable — falling back to browser');
-        ui.info('Opening https://vercel.com/marketplace/upstash …');
-        ui.info('Click "Add Integration" → "Upstash for Redis", select this project, complete the flow.');
+        s.stop('CLI provisioning unavailable — falling back to browser', 1);
+        p.log.info('Opening https://vercel.com/marketplace/upstash …');
+        p.log.message(pc.dim('Click "Add Integration" → "Upstash for Redis", select this project, complete the flow.'));
         const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
         spawn(opener, ['https://vercel.com/marketplace/upstash'], { detached: true, stdio: 'ignore' });
-        await ask('Press Enter once Upstash is connected and REDIS_URL is set… ');
+        bail(await p.confirm({ message: 'Connected Upstash and set REDIS_URL?', initialValue: true }));
         const confirmed = await vercelEnvExists('REDIS_URL');
         if (!confirmed) {
-          ui.warn('REDIS_URL still not detected. Thread-follow will silently break across Fluid Compute instances until this is set.');
+          p.log.warn('REDIS_URL still not detected. Thread-follow will silently break across Fluid Compute instances until this is set.');
         } else {
-          ui.ok('REDIS_URL confirmed.');
+          p.log.success('REDIS_URL confirmed.');
         }
       }
     } else {
-      ui.warn('Skipped. Thread-follow will silently break across Fluid Compute instances until REDIS_URL is set.');
+      p.log.warn('Skipped. Thread-follow will silently break across Fluid Compute instances until REDIS_URL is set.');
     }
   }
 
   // ---- Step 2: Slack config token + create app ----
-  ui.step(2, 7, 'Create Slack app');
-  ui.info('Generate a config token at: https://api.slack.com/apps');
-  ui.info('Scroll to the bottom of the page → "Your App Configuration Tokens" → "Generate Token" for the workspace where Ekko will live.');
-  console.log();
-  const configToken = (await ask('Paste config token (xoxe...): ')).trim();
-  if (!configToken.startsWith('xoxe.')) abort('That does not look like a config token.');
+  p.log.step('Step 2/7  Create Slack app');
+  p.log.info('Generate a config token at: https://api.slack.com/apps');
+  p.log.message(pc.dim('Scroll to the bottom → "Your App Configuration Tokens" → "Generate Token" for the workspace where Ekko will live.'));
 
-  ui.step(3, 7, 'Creating Slack app from manifest');
+  const configToken = bail(await p.text({
+    message: 'Paste your Slack config token',
+    placeholder: 'xoxe.xoxp-…',
+    validate: (v) => (!v || !v.startsWith('xoxe.')) ? 'That does not look like a config token.' : undefined,
+  }));
+
+  p.log.step('Step 3/7  Creating Slack app from manifest');
   const manifestPath = path.join(projectRoot, 'slack-manifest.yaml');
   const manifestRaw = readFileSync(manifestPath, 'utf-8');
   const manifestObj = parseYaml(manifestRaw);
@@ -261,14 +205,14 @@ async function main() {
   }
   const { app_id } = createData;
   const { client_id, client_secret, signing_secret } = createData.credentials;
-  ui.ok(`Created Slack app ${app_id}`);
+  p.log.success(`Created Slack app ${app_id}`);
 
   // ---- Step 4: OAuth install ----
-  ui.step(4, 7, 'Install to workspace');
+  p.log.step('Step 4/7  Install to workspace');
   const scopes = (manifestObj.oauth_config.scopes.bot || []).join(',');
   const installUrl = `https://slack.com/oauth/v2/authorize?client_id=${client_id}&scope=${scopes}&redirect_uri=${encodeURIComponent(tempRedirect)}`;
-  ui.info('Opening browser for OAuth install…');
-  ui.info(`If it does not open, visit: ${installUrl}`);
+  p.log.info('Opening browser for OAuth install…');
+  p.log.message(pc.dim(`If it does not open, visit: ${installUrl}`));
 
   const code = await new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
@@ -313,146 +257,188 @@ async function main() {
   if (!oauthData.ok) abort(`OAuth exchange failed: ${oauthData.error}`);
   const botToken = oauthData.access_token;
   const installerId = oauthData.authed_user?.id;
-  ui.ok(`Installed to ${oauthData.team?.name} (${oauthData.team?.id})`);
+  p.log.success(`Installed to ${oauthData.team?.name} (${oauthData.team?.id})`);
 
   // ---- Step 5: Write env vars to Vercel ----
-  ui.step(5, 7, 'Write env vars to Vercel');
+  p.log.step('Step 5/7  Write env vars to Vercel');
 
-  let s = spinner('Writing SLACK_BOT_TOKEN…');
+  let s = p.spinner();
+  s.start('Writing SLACK_BOT_TOKEN…');
   try {
     await setVercelEnv('SLACK_BOT_TOKEN', botToken);
     s.stop('SLACK_BOT_TOKEN set');
   } catch (err) {
-    s.fail('Failed to write SLACK_BOT_TOKEN');
+    s.stop('Failed to write SLACK_BOT_TOKEN', 1);
     throw err;
   }
 
-  s = spinner('Writing SLACK_SIGNING_SECRET…');
+  s = p.spinner();
+  s.start('Writing SLACK_SIGNING_SECRET…');
   try {
     await setVercelEnv('SLACK_SIGNING_SECRET', signing_secret);
     s.stop('SLACK_SIGNING_SECRET set');
   } catch (err) {
-    s.fail('Failed to write SLACK_SIGNING_SECRET');
+    s.stop('Failed to write SLACK_SIGNING_SECRET', 1);
     throw err;
   }
 
   // Generate + set CRON_SECRET so the nightly /api/cron/compact route can
   // authenticate (otherwise it returns 503 and memory compaction never runs).
-  s = spinner('Writing CRON_SECRET…');
+  s = p.spinner();
+  s.start('Writing CRON_SECRET…');
   try {
     const cronSecret = randomBytes(32).toString('hex');
     await setVercelEnv('CRON_SECRET', cronSecret);
     s.stop('CRON_SECRET set');
   } catch (err) {
-    s.fail('Failed to write CRON_SECRET');
+    s.stop('Failed to write CRON_SECRET', 1);
     throw err;
   }
 
-  // ---- Step 6: Composio (optional) — not counted as a numbered step ----
+  // ---- Composio (optional) ----
+  // Collapse the old two-confirm flow (want? → have-account?) into one select.
+  const composioChoice = bail(await p.select({
+    message: 'Composio (1000+ tools: Gmail, Linear, Notion, …)',
+    options: [
+      { value: 'create', label: 'Create a Composio account for me', hint: 'recommended, no signup' },
+      { value: 'paste',  label: 'I have a Composio API key',        hint: 'paste it' },
+      { value: 'skip',   label: 'Skip for now' },
+    ],
+    initialValue: 'create',
+  }));
+
   let composioConfigured = false;
-  console.log();
-  ui.say(c.dim('Optional: Composio for 1000+ tools (Gmail, Linear, Notion, etc.)'));
-  const wantComposio = (await ask('Connect Composio? (Y/n) ')).trim().toLowerCase();
-  if (wantComposio !== 'n') {
-    const haveAccount = (await ask('Already have a Composio account? (y/N) ')).trim().toLowerCase();
-    if (haveAccount === 'y') {
-      ui.info('Get the API key at: https://dashboard.composio.dev');
-      const k = (await ask('Paste Composio API key: ')).trim();
+
+  if (composioChoice === 'paste') {
+    p.log.info('Get the API key at: https://dashboard.composio.dev');
+    const k = bail(await p.text({ message: 'Paste your Composio API key', placeholder: 'ak_…' }));
+    if (k) {
+      s = p.spinner();
+      s.start('Writing COMPOSIO_API_KEY…');
+      try {
+        await setVercelEnv('COMPOSIO_API_KEY', k);
+        s.stop('COMPOSIO_API_KEY set');
+        composioConfigured = true;
+      } catch (err) {
+        s.stop('Failed to write COMPOSIO_API_KEY', 1);
+        throw err;
+      }
+    }
+  } else if (composioChoice === 'create') {
+    // Composio's agent self-signup: POST /api/signup creates an account for us
+    // and returns the real api_key alongside an agent_key that can later claim
+    // the account from a human Composio login.
+    // Docs: https://docs.composio.dev/docs/signing-up-as-an-agent
+    s = p.spinner();
+    s.start('Creating Composio agent account (~30s)…');
+    try {
+      const res = await fetch('https://agents.composio.dev/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      const apiKey = data?.composio?.api_key ?? data?.api_key;
+      if (!res.ok || !apiKey) {
+        throw new Error(data?.error?.message ?? data?.error ?? `signup returned ${res.status}`);
+      }
+      await setVercelEnv('COMPOSIO_API_KEY', apiKey);
+      composioConfigured = true;
+      s.stop(data.slug ? `Composio account created (${data.slug})` : 'Composio account created');
+
+      // Save the full signup payload so the user can claim the account into
+      // their own Composio login later (per Composio's agent flow).
+      try {
+        const composioDir = path.join(process.env.HOME ?? '/tmp', '.composio');
+        await fsMkdir(composioDir, { recursive: true });
+        const dataPath = path.join(composioDir, 'anonymous_user_data.json');
+        await fsWriteFile(dataPath, JSON.stringify(data, null, 2), { mode: 0o600 });
+        p.log.info(`Credentials saved locally at ${dataPath}`);
+        if (data.agent_key) {
+          p.log.message(pc.dim('To claim this account from a human Composio login: `composio claim` from any terminal authed to Composio.'));
+        }
+      } catch (err) {
+        p.log.warn(`Saved API key to Vercel but couldn't write local credentials file: ${err.message}`);
+      }
+    } catch (err) {
+      s.stop(`Composio signup failed: ${err.message}`, 1);
+      p.log.info('Falling back to manual paste. Get a key at: https://dashboard.composio.dev');
+      const k = bail(await p.text({
+        message: 'Paste your Composio API key (or press Esc to skip)',
+        placeholder: 'ak_…',
+      }));
       if (k) {
-        s = spinner('Writing COMPOSIO_API_KEY…');
+        s = p.spinner();
+        s.start('Writing COMPOSIO_API_KEY…');
         try {
           await setVercelEnv('COMPOSIO_API_KEY', k);
           s.stop('COMPOSIO_API_KEY set');
           composioConfigured = true;
-        } catch (err) {
-          s.fail('Failed to write COMPOSIO_API_KEY');
-          throw err;
-        }
-      }
-    } else {
-      // Composio's agent self-signup: POST /api/signup creates an account for us
-      // and returns the real api_key alongside an agent_key that can later claim
-      // the account from a human Composio login.
-      // Docs: https://docs.composio.dev/docs/signing-up-as-an-agent
-      s = spinner('Creating Composio agent account (~30s)…');
-      try {
-        const res = await fetch('https://agents.composio.dev/api/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json();
-        const apiKey = data?.composio?.api_key ?? data?.api_key;
-        if (!res.ok || !apiKey) {
-          throw new Error(data?.error?.message ?? data?.error ?? `signup returned ${res.status}`);
-        }
-        await setVercelEnv('COMPOSIO_API_KEY', apiKey);
-        composioConfigured = true;
-        s.stop(data.slug ? `Composio account created (${data.slug})` : 'Composio account created');
-
-        // Save the full signup payload so the user can claim the account into
-        // their own Composio login later (per Composio's agent flow).
-        try {
-          const composioDir = path.join(process.env.HOME ?? '/tmp', '.composio');
-          await fsMkdir(composioDir, { recursive: true });
-          const dataPath = path.join(composioDir, 'anonymous_user_data.json');
-          await fsWriteFile(dataPath, JSON.stringify(data, null, 2), { mode: 0o600 });
-          ui.info(`Credentials saved locally at ${dataPath}`);
-          if (data.agent_key) {
-            ui.info('To claim this account from a human Composio login: `composio claim` from any terminal authed to Composio.');
-          }
-        } catch (err) {
-          ui.warn(`Saved API key to Vercel but couldn't write local credentials file: ${err.message}`);
-        }
-      } catch (err) {
-        s.fail(`Composio signup failed: ${err.message}`);
-        ui.info('Falling back to manual paste. Get a key at: https://dashboard.composio.dev');
-        const k = (await ask('Paste Composio API key (or press Enter to skip): ')).trim();
-        if (k) {
-          s = spinner('Writing COMPOSIO_API_KEY…');
-          try {
-            await setVercelEnv('COMPOSIO_API_KEY', k);
-            s.stop('COMPOSIO_API_KEY set');
-            composioConfigured = true;
-          } catch (err2) {
-            s.fail('Failed to write COMPOSIO_API_KEY');
-            throw err2;
-          }
+        } catch (err2) {
+          s.stop('Failed to write COMPOSIO_API_KEY', 1);
+          throw err2;
         }
       }
     }
   }
+  // composioChoice === 'skip' → do nothing
 
   // ---- Step 6: Deploy ----
-  ui.step(6, 7, 'Deploy to production');
+  p.log.step('Step 6/7  Deploy to production');
   let prodUrl;
-  const deploySpinner = spinner('Deploying to Vercel…');
+  const deploySpinner = p.spinner();
+  deploySpinner.start('Deploying to Vercel…');
   try {
     prodUrl = await deployAndCaptureUrl();
     if (!prodUrl) {
-      deploySpinner.fail('Could not parse production URL from deploy output');
+      deploySpinner.stop('Could not parse production URL from deploy output', 1);
       abort('Re-run `vercel deploy --prod` manually and update the Slack manifest at https://api.slack.com/apps.');
     }
     deploySpinner.stop(`Deployed to ${prodUrl}`);
   } catch (err) {
-    deploySpinner.fail('Deploy failed');
+    deploySpinner.stop('Deploy failed', 1);
     throw err;
   }
 
   // ---- Step 7: Apply migrations ----
-  ui.step(7, 7, 'Apply schema migrations');
+  p.log.step('Step 7/7  Apply schema migrations');
   // Pull production env (DATABASE_URL is only set on production by the Neon
   // Marketplace integration; without --environment=production we'd download
   // the development env which lacks DATABASE_URL, and db-push would error out).
+  const pullSpinner = p.spinner();
+  pullSpinner.start('Pulling production env…');
   await new Promise((resolve) => {
-    const pull = spawnVercel(['env', 'pull', '.env.local', '--environment=production', '--yes'], { cwd: projectRoot, stdio: 'inherit' });
-    pull.on('close', resolve);
+    const pull = spawnVercel(
+      ['env', 'pull', '.env.local', '--environment=production', '--yes'],
+      { cwd: projectRoot, stdio: ['ignore', 'ignore', 'pipe'] },
+    );
+    pull.on('close', (code) => {
+      if (code !== 0) {
+        pullSpinner.stop('vercel env pull exited non-zero — continuing anyway', 1);
+      } else {
+        pullSpinner.stop('Production env pulled');
+      }
+      resolve();
+    });
   });
+
+  const pushSpinner = p.spinner();
+  pushSpinner.start('Applying schema migrations…');
   await new Promise((resolve, reject) => {
-    const push = spawn('node', ['scripts/db-push.mjs'], { cwd: projectRoot, stdio: 'inherit', env: { ...process.env } });
+    let stderr = '';
+    const push = spawn('node', ['scripts/db-push.mjs'], {
+      cwd: projectRoot,
+      stdio: ['ignore', 'ignore', 'pipe'],
+      env: { ...process.env },
+    });
+    push.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
     push.on('close', (code) => {
       if (code !== 0) {
-        ui.warn('db:push exited non-zero. Run `pnpm db:push` manually after setting DATABASE_URL in .env.local.');
+        pushSpinner.stop('db:push exited non-zero', 1);
+        p.log.warn('Run `pnpm db:push` manually after setting DATABASE_URL in .env.local.');
+        if (stderr) p.log.message(pc.dim(stderr.trim().split('\n').slice(-3).join('\n')));
+      } else {
+        pushSpinner.stop('Schema migrations applied');
       }
       resolve();
     });
@@ -464,23 +450,27 @@ async function main() {
   // latest production deploy. Detection via `vercel inspect` is reliable in
   // practice — we only prompt the user as a fallback if it fails.
   const projectJson = JSON.parse(readFileSync(path.join(projectRoot, '.vercel/project.json'), 'utf-8'));
-  console.log();
-  const aliasSpinner = spinner('Detecting production alias…');
+  const aliasSpinner = p.spinner();
+  aliasSpinner.start('Detecting production alias…');
   const detectedAlias = await getProductionAlias(prodUrl);
   let stableUrl;
   if (detectedAlias) {
     aliasSpinner.stop(`Using ${detectedAlias} for the Slack manifest`);
     stableUrl = detectedAlias;
   } else {
-    aliasSpinner.fail('Could not detect alias via `vercel inspect`');
+    aliasSpinner.stop('Could not detect alias via `vercel inspect`', 1);
     const fallback = projectJson.projectName ? `https://${projectJson.projectName}.vercel.app` : prodUrl;
-    ui.info(`Falling back to: ${fallback}`);
-    const aliasInput = (await ask('Press Enter to accept, or paste a custom domain: ')).trim();
+    p.log.message(pc.dim(`Falling back to: ${fallback}`));
+    const aliasInput = bail(await p.text({
+      message: 'Production URL for the Slack manifest',
+      placeholder: fallback,
+      defaultValue: fallback,
+    }));
     stableUrl = aliasInput || fallback;
   }
 
-  console.log();
-  const manifestSpinner = spinner('Updating Slack manifest…');
+  const manifestSpinner = p.spinner();
+  manifestSpinner.start('Updating Slack manifest…');
   const finalManifest = structuredClone(manifestObj);
   const webhookUrl = `${stableUrl}/api/webhooks/slack`;
   if (finalManifest.settings?.event_subscriptions) finalManifest.settings.event_subscriptions.request_url = webhookUrl;
@@ -494,15 +484,16 @@ async function main() {
   });
   const updateData = await updateRes.json();
   if (!updateData.ok) {
-    manifestSpinner.fail(`Manifest update failed (${updateData.error})`);
-    ui.warn(`Update event URLs manually at https://api.slack.com/apps/${app_id}.`);
+    manifestSpinner.stop(`Manifest update failed (${updateData.error})`, 1);
+    p.log.warn(`Update event URLs manually at https://api.slack.com/apps/${app_id}.`);
   } else {
     manifestSpinner.stop('Slack manifest updated');
   }
 
   // ---- Welcome DM to the installer ----
   if (installerId) {
-    const dmSpinner = spinner('Sending welcome DM…');
+    const dmSpinner = p.spinner();
+    dmSpinner.start('Sending welcome DM…');
     const toolsLine = composioConfigured
       ? 'Composio is plugged in 🔌. To connect any toolkit (Gmail, Linear, Notion, and more), *just ask me*. Say "connect Gmail" and I\'ll send back a one-click authorization link tied to *your* Slack user. (Connecting through dashboard.composio.dev directly binds to a different identity and I won\'t see it.)'
       : 'Want me to use 1000+ external tools? Grab a Composio API key at <https://dashboard.composio.dev>, add it as `COMPOSIO_API_KEY` to your Vercel env, and redeploy. Then just ask me to connect what you need.';
@@ -527,45 +518,49 @@ async function main() {
     if (dmData.ok) {
       dmSpinner.stop('Sent welcome DM');
     } else {
-      dmSpinner.fail(`Could not send welcome DM (${dmData.error})`);
-      ui.warn('Not fatal — open Slack and DM Ekko directly.');
+      dmSpinner.stop(`Could not send welcome DM (${dmData.error})`, 1);
+      p.log.warn('Not fatal — open Slack and DM Ekko directly.');
     }
   }
 
   // ---- Done ----
-  ui.done('Setup complete!', [
-    `Stable URL: ${stableUrl}`,
-    `Slack app: https://api.slack.com/apps/${app_id}`,
-    'Open Slack and DM Ekko 👋',
-  ]);
+  p.note(
+    [
+      `Stable URL   ${stableUrl}`,
+      `Slack app    https://api.slack.com/apps/${app_id}`,
+    ].join('\n'),
+    'Setup complete',
+  );
 
   // Offer to open the dashboard for icon upload.
   // (Slack's standard manifest API doesn't accept icons — only the Deno SDK manifest does,
   // and only because `slack deploy` pre-uploads it via an internal endpoint before sending
   // the rest to apps.manifest.create. For us: manual upload is the only supported path.)
   // We ship a default icon at public/ekko-icon.png — users can drag-drop it directly.
-  const wantIcon = (await ask('Upload an app icon now? Opens the Basic Information page in your browser. (Y/n) ')).trim().toLowerCase();
-  if (wantIcon !== 'n') {
+  const wantIcon = bail(await p.confirm({
+    message: 'Open the Slack dashboard to upload an app icon now?',
+    initialValue: true,
+  }));
+  if (wantIcon) {
     const iconPageUrl = `https://api.slack.com/apps/${app_id}/general`;
     const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
     spawn(opener, [iconPageUrl], { detached: true, stdio: 'ignore' });
-    ui.ok(`Opened ${iconPageUrl}`);
-    ui.info('Scroll to "Display Information" → "App icon".');
-    ui.info(`Drag-drop ${path.join(projectRoot, 'public/ekko-icon.png')} (the default Ekko icon, or your own).`);
+    p.log.success(`Opened ${iconPageUrl}`);
+    p.log.message(pc.dim('Scroll to "Display Information" → "App icon".'));
+    p.log.message(pc.dim(`Drag-drop ${path.join(projectRoot, 'public/ekko-icon.png')} (the default Ekko icon, or your own).`));
   } else {
-    ui.info(`To upload later: https://api.slack.com/apps/${app_id} → Basic Information → App icon.`);
-    ui.info(`Default icon to upload: ${path.join(projectRoot, 'public/ekko-icon.png')}`);
+    p.log.message(pc.dim(`To upload later: https://api.slack.com/apps/${app_id} → Basic Information → App icon.`));
+    p.log.message(pc.dim(`Default icon to upload: ${path.join(projectRoot, 'public/ekko-icon.png')}`));
   }
 
-  console.log();
-  rl.close();
+  p.outro(pc.cyan('Open Slack and DM Ekko 👋'));
 }
 
 function which(cmd) {
   return new Promise((resolve) => {
-    const p = spawn(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
-    p.on('close', (code) => resolve(code === 0));
-    p.on('error', () => resolve(false));
+    const proc = spawn(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
+    proc.on('close', (code) => resolve(code === 0));
+    proc.on('error', () => resolve(false));
   });
 }
 
@@ -590,12 +585,12 @@ function vercelEnvExists(key) {
  */
 function tryVercelIntegrationAdd(slug) {
   return new Promise((resolve) => {
-    const p = spawnVercel(['integration', 'add', slug, '--environment', 'production'], {
+    const proc = spawnVercel(['integration', 'add', slug, '--environment', 'production'], {
       cwd: projectRoot,
       stdio: ['ignore', 'ignore', 'ignore'],
     });
-    p.on('close', (code) => resolve(code === 0));
-    p.on('error', () => resolve(false));
+    proc.on('close', (code) => resolve(code === 0));
+    proc.on('error', () => resolve(false));
   });
 }
 
@@ -665,6 +660,6 @@ function deployAndCaptureUrl() {
 }
 
 main().catch((err) => {
-  ui.err(`Setup failed: ${err.message}`);
+  p.log.error(`Setup failed: ${err.message}`);
   process.exit(1);
 });

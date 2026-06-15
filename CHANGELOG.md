@@ -4,6 +4,17 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.1.18] — 2026-06-15
+
+Terminal UX overhaul. Both CLIs (`create-ekko-agent` and `pnpm bootstrap`) now render with [`@clack/prompts`](https://github.com/bombshell-dev/clack) + `picocolors`, matching the clean gutter-rail aesthetic of vercel-labs/skills.
+
+- **The left-rail gutter** ties the whole flow into one visual thread, with distinct symbols for headers (`◇`), prompts (`◆`), success/warn/error, and the intro/outro caps. It is now obvious at a glance what is a section header vs a step vs a selection.
+- **Intro badge** (`┌ ekko setup `), section headers via `p.log.step`, dim secondary detail via `p.log.message`, and a boxed `p.note` summary at the end.
+- **Real arrow-key menus** replace typed y/n prompts. The Composio step in particular collapsed from two sequential confirms into one clean three-way `select`: "Create a Composio account for me" / "I have a Composio API key" / "Skip for now."
+- **Spinners** (`p.spinner`) with rail-aligned start/stop for every long step (provisioning, deploy, migrations, env writes, welcome DM). Noisy non-interactive child processes (`vercel env pull`, `db:push`) now run under spinners with captured output, so the rail stays unbroken.
+- **Graceful Ctrl-C everywhere** via `p.isCancel` — every prompt cancels cleanly instead of leaving a half-rendered line.
+- Pure presentation change: all Slack manifest/OAuth/env/Composio/deploy/migration logic is byte-for-byte identical. Adds two small, ubiquitous deps (`@clack/prompts`, `picocolors`) to the template and to `create-ekko-agent`.
+
 ## [0.1.17] — 2026-06-15
 
 Tone-of-voice + Slack formatting overhaul of the system prompt.

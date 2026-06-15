@@ -28,7 +28,9 @@ function bail(value) {
 
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: 'inherit', ...opts });
+    // NODE_NO_WARNINGS silences third-party deprecation noise (e.g. a transitive
+    // dep's url.parse() DEP0169) that would otherwise clutter the clean install output.
+    const proc = spawn(cmd, args, { stdio: 'inherit', env: { ...process.env, NODE_NO_WARNINGS: '1' }, ...opts });
     proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} exited ${code}`))));
     proc.on('error', reject);
   });

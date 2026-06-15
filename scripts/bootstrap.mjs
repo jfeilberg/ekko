@@ -15,7 +15,6 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
-import { mkdir as fsMkdir, writeFile as fsWriteFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -126,36 +125,31 @@ async function main() {
   if (hasRedisUrl) {
     p.log.success('REDIS_URL already set — skipping Upstash provisioning.');
   } else {
-    p.log.info('Ekko uses Redis for thread-follow + event dedup across deploy instances.');
-    p.log.message(pc.dim('Upstash for Redis (free tier, 10k commands/day, 256MB) is the default.'));
+    p.log.info('Ekko can use Redis for thread-follow + cross-instance event dedup.');
+    p.log.message(pc.dim('Optional. The bot works without it; replying after a mention needs it.'));
 
-    const provisionRedis = bail(await p.confirm({
-      message: 'Provision Upstash Redis via Vercel Marketplace?',
+    const provisionRedis = await p.confirm({
+      message: 'Try to provision Upstash Redis via Vercel CLI? (optional)',
       initialValue: true,
-    }));
-    if (provisionRedis) {
+    });
+    if (!p.isCancel(provisionRedis) && provisionRedis) {
       const s = p.spinner();
       s.start('Provisioning Upstash Redis via Vercel CLI…');
-      // Slug per `vercel integration discover redis` → "Upstash for Redis"
+      // Slug per `vercel integration discover redis` → "Upstash for Redis".
       const cliOk = await tryVercelIntegrationAdd('upstash/upstash-kv');
       if (cliOk) {
         s.stop('Upstash Redis provisioned and REDIS_URL injected');
       } else {
-        s.stop('CLI provisioning unavailable — falling back to browser', 1);
-        p.log.info('Opening https://vercel.com/marketplace/upstash …');
-        p.log.message(pc.dim('Click "Add Integration" → "Upstash for Redis", select this project, complete the flow.'));
-        const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-        spawn(opener, ['https://vercel.com/marketplace/upstash'], { detached: true, stdio: 'ignore' });
-        bail(await p.confirm({ message: 'Connected Upstash and set REDIS_URL?', initialValue: true }));
-        const confirmed = await vercelEnvExists('REDIS_URL');
-        if (!confirmed) {
-          p.log.warn('REDIS_URL still not detected. Thread-follow will silently break across Fluid Compute instances until this is set.');
-        } else {
-          p.log.success('REDIS_URL confirmed.');
-        }
+        // CLI `integration add` only works once the integration is already
+        // installed on the team; first-time install needs a browser OAuth/terms
+        // step the CLI can't automate. Redis is optional, so don't force the
+        // user through the Marketplace flow — inform and continue.
+        s.stop('Could not auto-provision Redis via CLI', 1);
+        p.log.message(pc.dim("Upstash needs a one-time browser install the CLI can't do. Skipping — the bot works without it."));
+        p.log.message(pc.dim('Add anytime: any REDIS_URL works (Upstash, Redis Cloud, …). See the README.'));
       }
     } else {
-      p.log.warn('Skipped. Thread-follow will silently break across Fluid Compute instances until REDIS_URL is set.');
+      p.log.message(pc.dim('Skipped Redis. Thread-follow needs it; add a REDIS_URL anytime (README).'));
     }
   }
 
@@ -296,92 +290,43 @@ async function main() {
   }
 
   // ---- Composio (optional) ----
-  // Collapse the old two-confirm flow (want? → have-account?) into one select.
-  const composioChoice = bail(await p.select({
-    message: 'Composio (1000+ tools: Gmail, Linear, Notion, …)',
-    options: [
-      { value: 'create', label: 'Create a Composio account for me', hint: 'recommended, no signup' },
-      { value: 'paste',  label: 'I have a Composio API key',        hint: 'paste it' },
-      { value: 'skip',   label: 'Skip for now' },
-    ],
-    initialValue: 'create',
-  }));
+  // Composio enables 1000+ OAuth-brokered tools (Gmail, Linear, Notion, …). It is
+  // optional — the bot works without it and you can add COMPOSIO_API_KEY anytime.
+  // Nothing in this step cancels setup: Esc / skip just continues without Composio.
+  p.log.step('Composio tools (optional)');
+  p.log.message(pc.dim('1000+ OAuth-brokered tools: Gmail, Linear, Notion, and more.'));
 
   let composioConfigured = false;
 
-  if (composioChoice === 'paste') {
-    p.log.info('Get the API key at: https://dashboard.composio.dev');
-    const k = bail(await p.text({ message: 'Paste your Composio API key', placeholder: 'ak_…' }));
-    if (k) {
+  const composioChoice = await p.select({
+    message: 'Set up Composio tools now?',
+    options: [
+      { value: 'paste', label: 'I have a Composio API key', hint: 'from dashboard.composio.dev' },
+      { value: 'skip',  label: 'Skip for now',              hint: 'add COMPOSIO_API_KEY later' },
+    ],
+    initialValue: 'skip',
+  });
+
+  if (!p.isCancel(composioChoice) && composioChoice === 'paste') {
+    p.log.message(pc.dim('Get a key at https://dashboard.composio.dev (Settings → API Keys).'));
+    const k = await p.text({ message: 'Paste your Composio API key', placeholder: 'ak_…' });
+    if (!p.isCancel(k) && k && k.trim()) {
       s = p.spinner();
       s.start('Writing COMPOSIO_API_KEY…');
       try {
-        await setVercelEnv('COMPOSIO_API_KEY', k);
+        await setVercelEnv('COMPOSIO_API_KEY', k.trim());
         s.stop('COMPOSIO_API_KEY set');
         composioConfigured = true;
       } catch (err) {
         s.stop('Failed to write COMPOSIO_API_KEY', 1);
         throw err;
       }
+    } else {
+      p.log.message(pc.dim('Skipped Composio. Add COMPOSIO_API_KEY to your Vercel env anytime.'));
     }
-  } else if (composioChoice === 'create') {
-    // Composio's agent self-signup: POST /api/signup creates an account for us
-    // and returns the real api_key alongside an agent_key that can later claim
-    // the account from a human Composio login.
-    // Docs: https://docs.composio.dev/docs/signing-up-as-an-agent
-    s = p.spinner();
-    s.start('Creating Composio agent account (~30s)…');
-    try {
-      const res = await fetch('https://agents.composio.dev/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      const apiKey = data?.composio?.api_key ?? data?.api_key;
-      if (!res.ok || !apiKey) {
-        throw new Error(data?.error?.message ?? data?.error ?? `signup returned ${res.status}`);
-      }
-      await setVercelEnv('COMPOSIO_API_KEY', apiKey);
-      composioConfigured = true;
-      s.stop(data.slug ? `Composio account created (${data.slug})` : 'Composio account created');
-
-      // Save the full signup payload so the user can claim the account into
-      // their own Composio login later (per Composio's agent flow).
-      try {
-        const composioDir = path.join(process.env.HOME ?? '/tmp', '.composio');
-        await fsMkdir(composioDir, { recursive: true });
-        const dataPath = path.join(composioDir, 'anonymous_user_data.json');
-        await fsWriteFile(dataPath, JSON.stringify(data, null, 2), { mode: 0o600 });
-        p.log.info(`Credentials saved locally at ${dataPath}`);
-        if (data.agent_key) {
-          p.log.message(pc.dim('To claim this account from a human Composio login: `composio claim` from any terminal authed to Composio.'));
-        }
-      } catch (err) {
-        p.log.warn(`Saved API key to Vercel but couldn't write local credentials file: ${err.message}`);
-      }
-    } catch (err) {
-      s.stop(`Composio signup failed: ${err.message}`, 1);
-      p.log.info('Falling back to manual paste. Get a key at: https://dashboard.composio.dev');
-      const k = bail(await p.text({
-        message: 'Paste your Composio API key (or press Esc to skip)',
-        placeholder: 'ak_…',
-      }));
-      if (k) {
-        s = p.spinner();
-        s.start('Writing COMPOSIO_API_KEY…');
-        try {
-          await setVercelEnv('COMPOSIO_API_KEY', k);
-          s.stop('COMPOSIO_API_KEY set');
-          composioConfigured = true;
-        } catch (err2) {
-          s.stop('Failed to write COMPOSIO_API_KEY', 1);
-          throw err2;
-        }
-      }
-    }
+  } else {
+    p.log.message(pc.dim('Skipped Composio. Add COMPOSIO_API_KEY later to enable 1000+ tools.'));
   }
-  // composioChoice === 'skip' → do nothing
 
   // ---- Step 6: Deploy ----
   p.log.step('Step 6/7  Deploy to production');

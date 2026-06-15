@@ -4,6 +4,15 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.1] — 2026-06-15
+
+Setup-flow fixes from a live `npx create-ekko-agent` run.
+
+- **Fix (critical)**: the Composio step could cancel the whole setup. Composio's agent self-signup endpoint (`agents.composio.dev/api/signup`) is **decommissioned** (returns 404 `DEPLOYMENT_NOT_FOUND`), so the "Create a Composio account for me" path failed, fell back to a paste prompt, and pressing Esc there aborted the entire setup mid-way (after the Slack app was already created). Removed the dead signup path. Composio is now a clean *paste-or-skip* select that **never cancels setup** — Esc/skip just continues without Composio (it's optional; add `COMPOSIO_API_KEY` anytime).
+- **Fix**: Redis provisioning no longer forces a clicky browser flow. `vercel integration add` only works once the integration is installed on your team; the first-time install needs a browser OAuth/terms step the CLI can't automate. Since Redis is optional, bootstrap now makes a best-effort CLI attempt and, on failure, prints a one-line "skipped — add a `REDIS_URL` anytime" note and continues, instead of auto-opening the Marketplace and asking you to confirm.
+- **Fix**: dropped the `"node": "22.x"` engine pin to `">=22"`, so `pnpm` no longer prints an "Unsupported engine" warning on Node 23/24 during scaffold.
+- **Polish**: `create-ekko-agent` runs its spawned `degit`/`pnpm`/`vercel` children with `NODE_NO_WARNINGS=1`, silencing a transitive dependency's `url.parse()` `DEP0169` deprecation that cluttered the install output.
+
 ## [0.2.0] — 2026-06-15
 
 **Agent Skills system.** Ekko can now load packaged, task-specific instructions on demand and render rich, self-contained artifacts.

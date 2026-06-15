@@ -1,12 +1,21 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
-import { WebClient } from '@slack/web-api';
 import { withStatusLabel } from '../tools/registry';
-import { env } from '../env';
 import { getAvailableSkills, getSkillByName } from './loader';
 import { getResourcesFor } from './resources';
 import { bundleArtifact } from './artifact';
 import { exportPdfTool } from './export';
+
+// Minimal shape of the live Chat SDK thread we need: post a message with file
+// uploads. The SDK resolves the real Slack channel + thread_ts from the thread,
+// which a hand-rolled filesUploadV2 cannot (thread.id is a composite adapter id,
+// not a raw Slack thread_ts).
+export type ThreadPoster = {
+  post: (message: {
+    markdown?: string;
+    files?: Array<{ data: Buffer; filename: string; mimeType?: string }>;
+  }) => Promise<unknown>;
+};
 
 type RuntimeCtx = {
   slackUserId: string;
@@ -14,13 +23,8 @@ type RuntimeCtx = {
   channelId: string;
   threadTs: string;
   composioEntityId: string;
+  thread?: ThreadPoster;
 };
-
-let cachedClient: WebClient | undefined;
-function slackClient(): WebClient {
-  if (!cachedClient) cachedClient = new WebClient(env().SLACK_BOT_TOKEN);
-  return cachedClient;
-}
 
 /**
  * Tools that implement progressive disclosure for skills.
@@ -116,20 +120,18 @@ export function skillTools(): Record<string, Tool> {
         opts: { experimental_context?: unknown } = {},
       ) => {
         const ctx = opts.experimental_context as RuntimeCtx | undefined;
-        if (!ctx?.channelId) return { ok: false, error: 'No channel context available to upload into.' };
+        if (!ctx?.thread) return { ok: false, error: 'No Slack thread available to deliver the file into.' };
 
         const result = await bundleArtifact(html);
-
         const name = filename.endsWith('.html') ? filename : `${filename}.html`;
-        const uploadArgs = {
-          channel_id: ctx.channelId,
-          filename: name,
-          content: result.html,
-          title: name,
-          ...(ctx.threadTs ? { thread_ts: ctx.threadTs } : {}),
-          ...(comment ? { initial_comment: comment } : {}),
-        } as Parameters<WebClient['filesUploadV2']>[0];
-        await slackClient().filesUploadV2(uploadArgs);
+
+        // Deliver through the Chat SDK thread: it posts to the correct channel +
+        // thread_ts and throws on failure, so a successful return means the file
+        // actually landed (no more "Done" with no attachment).
+        await ctx.thread.post({
+          markdown: comment ?? `📎 ${name}`,
+          files: [{ data: Buffer.from(result.html, 'utf8'), filename: name, mimeType: 'text/html' }],
+        });
 
         return {
           ok: true,

@@ -212,6 +212,12 @@ export async function runTurn(input: TurnInput): Promise<void> {
         channelId,
         threadTs: thread.id,
         composioEntityId: entityId,
+        // The live Chat SDK thread, so file-delivering tools (render_artifact,
+        // export_pdf) post through it. The SDK derives the real Slack channel +
+        // thread_ts internally; `thread.id` is a composite adapter id, NOT a raw
+        // Slack thread_ts, so a hand-rolled filesUploadV2 with it silently fails
+        // to land the file in the thread.
+        thread,
       },
     });
 

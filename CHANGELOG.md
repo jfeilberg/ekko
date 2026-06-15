@@ -4,6 +4,10 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.2] — 2026-06-15
+
+- **Fix (critical)**: skill artifacts (`render_artifact`, `export_pdf`) never arrived in the Slack thread, yet the bot reported success ("Done. 6-slide deck…" with no file). Both tools uploaded via a hand-rolled `WebClient.filesUploadV2({ thread_ts })`, passing the Chat SDK's **composite `thread.id`** as `thread_ts`. That is not a raw Slack `thread_ts`, so the upload completed against an invalid thread and the file silently never landed — while the tool still returned `ok: true`. Both tools now deliver through the live Chat SDK thread (`thread.post({ files })`), which resolves the real channel + `thread_ts` from the thread and throws on failure. The file now lands in the thread, and a failed delivery surfaces an error instead of a false "Done". The live `thread` is plumbed into the tool context via `experimental_context`.
+
 ## [0.2.1] — 2026-06-15
 
 Setup-flow fixes from a live `npx create-ekko-agent` run.

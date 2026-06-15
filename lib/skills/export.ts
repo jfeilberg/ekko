@@ -1,11 +1,19 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
-import { WebClient } from '@slack/web-api';
 import { withStatusLabel } from '../tools/registry';
 import { env } from '../env';
 import { log } from '../log';
 import { bundleArtifact } from './artifact';
 import { getSnapshotId, setSnapshotId, clearSnapshotId } from './snapshot';
+
+// Minimal shape of the live Chat SDK thread (post a message with file uploads).
+// Defined locally rather than imported from ./tools to avoid a circular import.
+type ThreadPoster = {
+  post: (message: {
+    markdown?: string;
+    files?: Array<{ data: Buffer; filename: string; mimeType?: string }>;
+  }) => Promise<unknown>;
+};
 
 type RuntimeCtx = {
   slackUserId: string;
@@ -13,13 +21,8 @@ type RuntimeCtx = {
   channelId: string;
   threadTs: string;
   composioEntityId: string;
+  thread?: ThreadPoster;
 };
-
-let cachedClient: WebClient | undefined;
-function slackClient(): WebClient {
-  if (!cachedClient) cachedClient = new WebClient(env().SLACK_BOT_TOKEN);
-  return cachedClient;
-}
 
 /** Pure gate: resolve whether PDF export should be offered. */
 export function resolvePdfExport(mode: 'auto' | 'on' | 'off', hasCredentials: boolean): boolean {
@@ -171,7 +174,7 @@ export function exportPdfTool(): Record<string, Tool> {
           opts: { experimental_context?: unknown } = {},
         ) => {
           const ctx = opts.experimental_context as RuntimeCtx | undefined;
-          if (!ctx?.channelId) return { ok: false, error: 'No channel context available to upload into.' };
+          if (!ctx?.thread) return { ok: false, error: 'No Slack thread available to deliver the PDF into.' };
 
           const bundled = await bundleArtifact(html);
           if (bundled.missing.length) {
@@ -193,15 +196,12 @@ export function exportPdfTool(): Record<string, Tool> {
           }
 
           const name = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-          const uploadArgs = {
-            channel_id: ctx.channelId,
-            filename: name,
-            file: pdf,
-            title: name,
-            ...(ctx.threadTs ? { thread_ts: ctx.threadTs } : {}),
-            ...(comment ? { initial_comment: comment } : {}),
-          } as Parameters<WebClient['filesUploadV2']>[0];
-          await slackClient().filesUploadV2(uploadArgs);
+          // Deliver through the Chat SDK thread (correct channel + thread_ts,
+          // throws on failure → no false "Done").
+          await ctx.thread.post({
+            markdown: comment ?? `📎 ${name}`,
+            files: [{ data: pdf, filename: name, mimeType: 'application/pdf' }],
+          });
 
           return { ok: true, sizeKb: Math.round(pdf.byteLength / 1024) };
         },

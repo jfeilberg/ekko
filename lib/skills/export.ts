@@ -141,6 +141,12 @@ async function renderPdfInSandbox(html: string): Promise<Buffer> {
     if (sandbox) {
       try {
         return await runExport(sandbox, html);
+      } catch (err) {
+        // The snapshot booted but the render failed (e.g. it didn't retain
+        // Chromium's system libs). Drop the snapshot and rebuild cold below so
+        // a bad snapshot self-heals instead of failing every subsequent render.
+        log.warn({ err }, 'pdf_snapshot_render_failed_rebuilding');
+        await clearSnapshotId();
       } finally {
         await sandbox.stop().catch(() => {});
       }
@@ -208,7 +214,26 @@ export function exportPdfTool(): Record<string, Tool> {
 
           const pdfName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
           const htmlName = pdfName.replace(/\.pdf$/, '.html');
+          const thread = ctx.thread;
 
+          // Deliver the self-contained HTML — used both when the render fails and
+          // when a rendered PDF can't be uploaded. Returns true only if the file
+          // actually lands in the thread (a thrown upload returns false).
+          const deliverHtml = async (markdown: string): Promise<boolean> => {
+            try {
+              await thread.post({
+                markdown,
+                files: [{ data: Buffer.from(bundled.html, 'utf8'), filename: htmlName, mimeType: 'text/html' }],
+              });
+              log.info({ htmlName }, 'pdf_html_delivered');
+              return true;
+            } catch (err) {
+              log.warn({ err, htmlName }, 'pdf_html_delivery_failed');
+              return false;
+            }
+          };
+
+          // 1) Render the PDF server-side.
           let pdf: Buffer;
           try {
             pdf = await renderPdfInSandbox(bundled.html);
@@ -216,30 +241,52 @@ export function exportPdfTool(): Record<string, Tool> {
             // Server-side render failed (sandbox unavailable, OIDC, timeout, …).
             // Still deliver the self-contained HTML so the user gets the artifact —
             // it exports to PDF from the browser print dialog (press P in a deck).
-            // export_pdf is therefore always safe to call: worst case → HTML.
             log.warn({ err }, 'pdf_export_failed_html_fallback');
-            await ctx.thread.post({
-              markdown:
-                comment ??
+            const delivered = await deliverHtml(
+              comment ??
                 `📎 ${htmlName} — here's the artifact as HTML. Open it and press P (or use the browser's print dialog) to save it as a PDF.`,
-              files: [{ data: Buffer.from(bundled.html, 'utf8'), filename: htmlName, mimeType: 'text/html' }],
-            });
-            return {
-              ok: true,
-              deliveredAs: 'html',
-              // Factual note for the model. Do NOT speculate to the user about
-              // why PDF didn't render or whether it will work next time — the
-              // HTML was delivered and that is the outcome to report.
-              note: 'Delivered the self-contained HTML (it exports to PDF from the browser print dialog). Tell the user the artifact is attached as HTML; do not claim the PDF service is temporarily down or will recover.',
-            };
+            );
+            return delivered
+              ? {
+                  ok: true,
+                  deliveredAs: 'html',
+                  // Factual note for the model. Do NOT speculate about why PDF
+                  // didn't render — the HTML was delivered, report just that.
+                  note: 'Delivered the self-contained HTML (it exports to PDF from the browser print dialog). Tell the user the artifact is attached as HTML; do not claim the PDF service is temporarily down or will recover.',
+                }
+              : { ok: false, error: "Couldn't render or deliver the artifact. Tell the user it failed to send and to try again." };
           }
 
-          // Deliver through the Chat SDK thread (correct channel + thread_ts).
-          await ctx.thread.post({
-            markdown: comment ?? `📎 ${pdfName}`,
-            files: [{ data: pdf, filename: pdfName, mimeType: 'application/pdf' }],
-          });
-          return { ok: true, deliveredAs: 'pdf', sizeKb: Math.round(pdf.byteLength / 1024) };
+          const sizeKb = Math.round(pdf.byteLength / 1024);
+          log.info({ pdfName, sizeKb }, 'pdf_render_ok');
+
+          // 2) Deliver the PDF through the Chat SDK thread (correct channel +
+          // thread_ts). Normalize to a Node Buffer for the Slack upload path.
+          const pdfBytes = Buffer.isBuffer(pdf) ? pdf : Buffer.from(pdf as Uint8Array);
+          try {
+            await thread.post({
+              markdown: comment ?? `📎 ${pdfName}`,
+              files: [{ data: pdfBytes, filename: pdfName, mimeType: 'application/pdf' }],
+            });
+            log.info({ pdfName, sizeKb }, 'pdf_delivered');
+            return { ok: true, deliveredAs: 'pdf', sizeKb };
+          } catch (err) {
+            // The render succeeded but the upload threw. Never claim success —
+            // fall back to HTML, and if that also fails, report honestly so the
+            // model tells the user it didn't send instead of saying "done".
+            log.warn({ err, pdfName, sizeKb }, 'pdf_delivery_failed');
+            const delivered = await deliverHtml(
+              comment ??
+                `📎 ${htmlName} — the PDF didn't upload, so here's the artifact as HTML. Open it and press P to save it as a PDF.`,
+            );
+            return delivered
+              ? {
+                  ok: true,
+                  deliveredAs: 'html',
+                  note: 'The PDF rendered but its upload failed; delivered the HTML instead. Tell the user the artifact is attached as HTML.',
+                }
+              : { ok: false, error: "The artifact rendered but couldn't be delivered to the thread. Tell the user it failed to send and to try again." };
+          }
         },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any) as Tool,

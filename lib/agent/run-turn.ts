@@ -1,7 +1,7 @@
 import { ToolLoopAgent, stepCountIs, type ModelMessage, type Tool, type ToolSet } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import type { Thread } from 'chat';
-import { toAiMessages, StreamingPlan } from 'chat';
+import { toAiMessages, Plan } from 'chat';
 import { env } from '../env';
 import { log } from '../log';
 import { getSystemPrompt } from './system-prompt';
@@ -54,11 +54,9 @@ export async function runTurn(input: TurnInput): Promise<void> {
   });
 
   try {
-    // Surface Slack's native typing status while context loads + agent runs.
+    // Surface Slack's native typing indicator while context loads + agent runs.
     // Slack stops it automatically when the next message posts; for the longer
-    // streaming flows we re-trigger it just before the stream below. This is the
-    // ONLY transient "working" indicator — the streamed message (below) shows the
-    // tool / reasoning chain inline, so we don't post a separate Plan message.
+    // streaming flows we re-trigger it just before the stream below.
     await thread.startTyping('Thinking…').catch(() => {});
 
     const [recallContext, composio, threadFetch] = await Promise.all([
@@ -84,15 +82,21 @@ export async function runTurn(input: TurnInput): Promise<void> {
       'turn.tools',
     );
 
-    // Wrap each tool with lightweight latency logging only. The progress UI is
-    // rendered natively by the streamed message below: StreamingPlan groups the
-    // tool / reasoning chain into one collapsible block. We deliberately do NOT
-    // post a separate Plan message here — that produced a redundant second
-    // "Thinking…" row alongside Slack's typing status (one indicator is enough).
+    // --- Plan: in-bubble task cards ---
+    // Post a Plan before the agent runs so the user sees progress immediately.
+    // This collapsible card (Thinking… → tool steps → Done) is the working
+    // indicator; the answer streams as a separate message below it.
+    const plan = new Plan({ initialMessage: 'Thinking…' });
+    await thread.post(plan).catch((err) => {
+      log.warn({ err }, 'plan_post_failed');
+    });
+
+    // Wrap each tool to emit Plan task updates while it executes.
     const wrappedTools: ToolSet = {};
     for (const [name, tool] of Object.entries(tools)) {
       type ToolWithExecute = Tool & {
         execute?: (input: unknown, options: unknown) => Promise<unknown>;
+        experimental_meta?: { slackStatusLabel?: string };
       };
       const t = tool as ToolWithExecute;
       const originalExecute = t.execute;
@@ -100,15 +104,34 @@ export async function runTurn(input: TurnInput): Promise<void> {
         wrappedTools[name] = tool as ToolSet[string];
         continue;
       }
+      const label = t.experimental_meta?.slackStatusLabel ?? `Calling ${name}…`;
       wrappedTools[name] = {
         ...tool,
         execute: async (input: unknown, options: unknown) => {
+          // addTask() returns a PlanTask with an id; capture it for updateTask.
+          let taskId: string | undefined;
+          try {
+            const task = await plan.addTask({ title: label });
+            taskId = task?.id;
+          } catch {
+            /* tolerate — plan may not be bound yet */
+          }
           const t0 = Date.now();
           try {
             const result = await originalExecute(input, options);
+            try {
+              await plan.updateTask({ id: taskId, status: 'complete' });
+            } catch {
+              /* best effort */
+            }
             log.info({ tool: name, ok: true, latencyMs: Date.now() - t0 }, 'tool_call');
             return result;
           } catch (err) {
+            try {
+              await plan.updateTask({ id: taskId, status: 'error' });
+            } catch {
+              /* best effort */
+            }
             log.warn({ tool: name, err, latencyMs: Date.now() - t0 }, 'tool_call_failed');
             throw err;
           }
@@ -205,16 +228,21 @@ export async function runTurn(input: TurnInput): Promise<void> {
     });
 
     const result = await agent.stream({ messages });
-    // Re-trigger the native typing status right before streaming so the
-    // indicator persists through the model's first-token latency.
+    // Re-trigger typing right before streaming so the indicator persists
+    // through the model's first-token latency.
     await thread.startTyping('Thinking…').catch(() => {});
-    // Stream as a SINGLE message. `fullStream` carries text-delta + tool-call /
-    // tool-result events; wrapping it in a StreamingPlan with groupTasks:'plan'
-    // renders the tool / reasoning chain as one collapsible block above the
-    // answer. That replaces the old separate Plan message, so the user sees one
-    // row (tools + answer) plus Slack's typing status, not two "thinking" rows.
-    await thread.post(new StreamingPlan(result.fullStream, { groupTasks: 'plan' }));
+    // `fullStream` preserves step boundaries (text-delta, tool-call, tool-result,
+    // step-start/finish) so the Slack adapter renders multi-tool runs with
+    // proper separators instead of one mashed-together stream.
+    await thread.post(result.fullStream);
     const finalText = await result.text;
+
+    // Mark the plan complete once the response is streamed.
+    try {
+      await plan.complete({ completeMessage: 'Done' });
+    } catch {
+      /* best effort */
+    }
 
     recordMessage({
       slackUserId,

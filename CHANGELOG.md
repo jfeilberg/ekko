@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.6] — 2026-06-16
+
+Fixes two regressions/issues surfaced live after 0.2.5.
+
+- **Fix: restored the collapsible progress card.** 0.2.5 replaced the standalone `Plan` (the unfoldable Thinking… → steps → Done card) with `StreamingPlan({ groupTasks: 'plan' })`, which on Slack actually renders the tool steps as flat **inline text** mashed into the reply — not a collapsible block. Reverted `run-turn.ts` to post the standalone `Plan` card and stream the answer as a separate message (the behaviour people liked).
+- **Fix: `export_pdf` can no longer report false success.** The final file upload happened *outside* the try/catch, so if a rendered PDF failed to upload, the error was swallowed, nothing landed in the thread, and the model still said "done". Delivery is now fully guarded and observable: the render and the upload are logged separately (`pdf_render_ok`, `pdf_delivered`, `pdf_delivery_failed`, `pdf_html_delivered`), a failed PDF upload falls back to delivering the **HTML**, and if even that fails the tool returns an honest error so the model tells the user it didn't send. PDF bytes are normalized to a Node `Buffer` for the upload path.
+- **Fix: PDF sandbox snapshot self-heals.** If a warm render from a reused snapshot fails (e.g. the snapshot didn't retain Chromium's system libs), the snapshot is now dropped and the sandbox rebuilds cold in the same call, instead of failing every subsequent render.
+
 ## [0.2.5] — 2026-06-16
 
 Tighter type, more human voice, and a single Slack "thinking" row.

@@ -39,8 +39,8 @@ does). Set it to a signature colour to differentiate.
 | `--font-sans` | body typeface — running text, meta, labels, tables |
 | `--font-mono` | monospace stack (code, optional) |
 
-`--font-display` and `--font-sans` may be the same family or two different ones (`base` uses
-Inter in both roles; a pack is free to pair a display face with a separate body face).
+`--font-display` and `--font-sans` may be the same family or two different ones (`base` pairs
+Space Grotesk for display with Figtree for body; a pack is free to use one family in both roles).
 | `--fs-10 … --fs-48` | type scale in px (deck canvas is 1600×900) |
 | `--lh-tight/snug/body/prose` | line heights |
 

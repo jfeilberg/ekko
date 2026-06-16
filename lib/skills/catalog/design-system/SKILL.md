@@ -23,7 +23,7 @@ brands/<brand>/…      ← fills the contract: palette + @font-face + brand-spe
 Load exactly **one** medium engine per file — the engines' `@page` rules conflict.
 
 The included pack is **`brands/base/`** — a standalone, monochrome, warm-grey identity that
-ships only openly-licensed fonts (Inter + JetBrains Mono, both SIL OFL). Use it as-is for
+ships only openly-licensed fonts (Space Grotesk, Figtree + Space Mono, all SIL OFL). Use it as-is for
 unbranded artifacts, or `cp -r brands/base brands/<newbrand>` and change the palette + fonts to
 make your own. A brand can also be a **family** (a shared `_house.css` plus thin sub-brand files
 that set only ink + accent); see `reference/BRAND-PACK.md`. Type has two roles

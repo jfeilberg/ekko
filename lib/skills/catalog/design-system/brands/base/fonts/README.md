@@ -1,17 +1,23 @@
 # Base fonts — self-hosted
 
-Variable woff2, all **SIL OFL 1.1** (free to use, embed and redistribute — safe for
-open-source). Shipped here so `validate`/`bundle` produce fully offline artifacts:
+All **SIL OFL 1.1** (free to use, embed and redistribute — safe for open-source).
+Shipped here so `validate`/`bundle` produce fully offline artifacts:
 
-- `inter-var.woff2`         Inter           normal  wght 100-900 (used 300-700)
-- `inter-italic-var.woff2`  Inter           italic  wght 100-900 (used 300-700)
-- `jetbrains-mono-var.woff2` JetBrains Mono  normal  wght 400-500
+- `space-grotesk-var.woff2`   Space Grotesk  normal  wght 300-700 (display; no italic)
+- `figtree-var.woff2`         Figtree        normal  wght 300-900 (body / UI)
+- `figtree-italic-var.woff2`  Figtree        italic  wght 300-900 (carries every italic accent)
+- `space-mono-400.woff2`      Space Mono     normal  wght 400 (trackers / eyebrows / code)
+- `space-mono-700.woff2`      Space Mono     normal  wght 700
 
-Wired via `@font-face` at the top of `../brand.css`.
+Wired via `@font-face` at the top of `../brand.css`. Space Grotesk is upright only,
+so display italics intentionally fall to Figtree italic (`--font-sans`).
 
-Sources:
-- Inter — https://rsms.me/inter/ (Rasmus Andersson, SIL OFL 1.1)
-- JetBrains Mono — https://www.jetbrains.com/lp/mono/ (SIL OFL 1.1)
+Sources (all SIL OFL 1.1):
+- Space Grotesk — https://github.com/floriankarsten/space-grotesk (Florian Karsten)
+- Figtree — https://github.com/erikdkennedy/figtree (Erik D. Kennedy)
+- Space Mono — https://github.com/googlefonts/spacemono (Colophon Foundry)
 
-To refresh Inter, re-download `InterVariable.woff2` and `InterVariable-Italic.woff2`
-from rsms.me/inter/font-files/ and drop them in here under the names above.
+The bundled woff2 are the latin variable/static subsets from the Fontsource mirrors
+(`@fontsource-variable/space-grotesk`, `@fontsource-variable/figtree`,
+`@fontsource/space-mono`). To refresh, re-pull those files and drop them in here
+under the names above.

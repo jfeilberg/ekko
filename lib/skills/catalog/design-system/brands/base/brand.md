@@ -47,13 +47,16 @@ surface colour on dark so it stays legible.
 
 ## Type
 
-- **Display & body — Inter**, one neutral grotesque in two roles. Display runs Light (300) with
-  tightened tracking on the big marks; running text runs Regular (400), since Inter 300 reads
-  thin at 18px on a projector.
-- **Trackers / eyebrows / code — JetBrains Mono**, with light positive tracking.
+- **Display — Space Grotesk**, a tight, narrow geometric grotesque. Display runs Light (300)
+  with a light negative track on the big marks (the face is already tight, so it needs little).
+  Space Grotesk is upright only — it has no italic.
+- **Body — Figtree**, a warm humanist sans built for interfaces. Running text runs Regular (400),
+  since 300 reads thin at 18px on a projector. Figtree **also carries every italic accent**,
+  because the display face has none — an upright-grotesque / humanist-italic contrast that reads
+  as deliberate.
+- **Trackers / eyebrows / code — Space Mono**, with light positive tracking.
 
-Inter is self-hosted as a variable woff2 (`fonts/inter-var.woff2` + italic). All faces are
-**SIL OFL 1.1**.
+All three are self-hosted variable/static woff2 in `fonts/` and are **SIL OFL 1.1**.
 
 ## Voice
 
@@ -64,7 +67,7 @@ the close).
 
 ## Logos
 
-No image lockup. The wordmark is **plain text** set in Inter, via the engine's generic
+No image lockup. The wordmark is **plain text** set in Space Grotesk, via the engine's generic
 `.title-mark` (cover) and `.slide__wordmark` (footer). Replace the placeholder text per deck.
 If you fork this into a real brand and have an SVG lockup, drop it in `assets/` and wire its
 CSS in your `brand.css` (show the dark lockup on light slides, the light one on dark).

@@ -4,6 +4,14 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.2.5] — 2026-06-16
+
+Tighter type, more human voice, and a single Slack "thinking" row.
+
+- **New base-brand fonts** — the `design-system` base pack moves from Inter + JetBrains Mono to **Space Grotesk** (display, a tight geometric grotesque), **Figtree** (warm humanist body/UI), and **Space Mono** (trackers / eyebrows / code). All three are SIL OFL, self-hosted, and ~75% smaller bundled (resources dropped 1179 KB → 303 KB). Display tracking was relaxed since Space Grotesk is already tight. Space Grotesk has no italic, so every italic accent now renders in **Figtree italic** — a deliberate upright-grotesque / humanist-italic contrast. Forked brands are unaffected (they set their own faces).
+- **More human voice** — the agent `VOICE_RULES` and the deck `AUTHORING.md` tone rules now push concreteness over adjectives (name the real number/detail; specificity is what proves a person wrote it), and explicitly ban hype/marketing-speak and filler enthusiasm. Folds in the GTM-humanizer guidance.
+- **One "thinking" row in Slack** — `run-turn.ts` no longer posts a separate `Plan` message *and* a streamed reply (which showed two rows: "Thinking…" + "Typing…"). It now streams a single message via `StreamingPlan(fullStream, { groupTasks: 'plan' })`, which renders the tool / reasoning chain as one collapsible block above the answer. Slack's native typing status (set to "Thinking…") is the only transient indicator. Per-tool latency logging is preserved.
+
 ## [0.2.4] — 2026-06-15
 
 Server-side PDF export now actually renders (it was silently falling back to HTML).

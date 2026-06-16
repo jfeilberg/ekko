@@ -1,11 +1,15 @@
-/* ---------- Self-hosted variable fonts (SIL OFL, latin) ----------
+/* ---------- Self-hosted fonts (SIL OFL, latin) ----------
    Shipped in ./fonts/ so validate/bundle produce fully offline artifacts.
-   Inter carries the whole UI range (wght 100-900) and an italic axis;
-   JetBrains Mono is the code / eyebrow face. Both are SIL OFL, so this
-   pack is safe to open-source and redistribute. See ./fonts/README.md. */
-@font-face { font-family:"Inter"; font-style:normal; font-weight:300 700; font-display:swap; src:url("./fonts/inter-var.woff2") format("woff2"); }
-@font-face { font-family:"Inter"; font-style:italic; font-weight:300 700; font-display:swap; src:url("./fonts/inter-italic-var.woff2") format("woff2"); }
-@font-face { font-family:"JetBrains Mono"; font-style:normal; font-weight:400 500; font-display:swap; src:url("./fonts/jetbrains-mono-var.woff2") format("woff2"); }
+   Space Grotesk is the display face (tight, geometric grotesque; upright
+   only — it has no italic). Figtree is the body/UI face (warm humanist
+   sans) and ALSO carries every italic accent, since the display face has
+   none. Space Mono sets trackers / eyebrows / code. All three are SIL OFL,
+   so this pack is safe to open-source and redistribute. See ./fonts/README.md. */
+@font-face { font-family:"Space Grotesk"; font-style:normal; font-weight:300 700; font-display:swap; src:url("./fonts/space-grotesk-var.woff2") format("woff2"); }
+@font-face { font-family:"Figtree"; font-style:normal; font-weight:300 900; font-display:swap; src:url("./fonts/figtree-var.woff2") format("woff2"); }
+@font-face { font-family:"Figtree"; font-style:italic; font-weight:300 900; font-display:swap; src:url("./fonts/figtree-italic-var.woff2") format("woff2"); }
+@font-face { font-family:"Space Mono"; font-style:normal; font-weight:400; font-display:swap; src:url("./fonts/space-mono-400.woff2") format("woff2"); }
+@font-face { font-family:"Space Mono"; font-style:normal; font-weight:700; font-display:swap; src:url("./fonts/space-mono-700.woff2") format("woff2"); }
 
 /* ============================================================
    Base — brand pack (standalone, unbranded)
@@ -29,9 +33,11 @@
        never by colour. This is what keeps it brand-neutral.
      - Warm greyscale paper and ink (a faint red/yellow cast, not
        clinical blue-grey).
-     - Inter for both display and body (one neutral grotesque in
-       two roles), JetBrains Mono for trackers / code.
-     - No logo image. The wordmark is plain text, set in Inter, via
+     - Space Grotesk for display (tight geometric grotesque) and
+       Figtree for body (warm humanist sans); Space Mono for
+       trackers / code. Figtree also carries every italic accent,
+       since Space Grotesk has no italic.
+     - No logo image. The wordmark is plain text, set in Space Grotesk, via
        the engine's generic `.title-mark` (cover) and
        `.slide__wordmark` (footer). Swap the text per deck.
 
@@ -69,27 +75,29 @@
   --c-slate:      var(--c-ink);
 
   /* ---- type ---- */
-  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-  --font-sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:    "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 /* Letterbox behind the scaled canvas — warm ink, never pure black */
 .deck-stage { background: var(--base-ink); }
 
 /* ============================================================
-   Type tuning for Inter
+   Type tuning for Space Grotesk
    ------------------------------------------------------------
-   Inter sits a touch wide at display sizes; pull the tracking in
-   on the big marks so titles feel set, not defaulted. Running
-   text goes to 400 (Inter 300 reads thin at 18px on a projector).
+   Space Grotesk is narrow and already tightly spaced, so the big
+   marks need only a light negative track — the old Inter values
+   would collide. The face does the tightening; this just sets it.
+   Running text goes to 400 (Figtree 300 reads thin at 18px on a
+   projector).
    ============================================================ */
-.title-mark    { font-weight: 500; letter-spacing: -0.035em; }
-.title-topic   { font-weight: 300; letter-spacing: -0.015em; }
-.section-num   { letter-spacing: -0.03em; }
+.title-mark    { font-weight: 500; letter-spacing: -0.02em; }
+.title-topic   { font-weight: 300; letter-spacing: -0.01em; }
+.section-num   { letter-spacing: -0.015em; }
 .section-title,
-.action-title  { letter-spacing: -0.012em; }
-.h-display     { letter-spacing: -0.025em; }
+.action-title  { letter-spacing: -0.008em; }
+.h-display     { letter-spacing: -0.012em; }
 
 .slide p,
 .beforeafter li,
@@ -103,8 +111,8 @@
 .exec__num,
 .phase-overview__num { font-family: var(--font-mono); letter-spacing: 0.01em; }
 
-/* Footer wordmark — plain Inter, slightly tightened */
-.slide__wordmark { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; }
+/* Footer wordmark — display face, slightly tightened */
+.slide__wordmark { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.005em; }
 
 /* ============================================================
    Emphasis — MONO. No colour: italic + medium weight only.
@@ -112,11 +120,14 @@
    chromatic accent, that is a NEW brand, not this one.
    ============================================================ */
 .accent { color: var(--c-fg); font-weight: 500; }
+/* Italic is the accent device, but the display face (Space Grotesk) has no
+   italic — so every italic accent renders in Figtree, a real italic and a
+   deliberate humanist counter to the geometric display. */
 .action-title em,
 .section-title em,
 .title-topic em,
 .bigquote em,
-.accent { font-style: italic; }
+.accent { font-style: italic; font-family: var(--font-sans); }
 
 /* ============================================================
    Dark slides — accent == ink would vanish on the dark ground,

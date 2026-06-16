@@ -25,6 +25,8 @@ This is the most consistent identity device in the system.
 5. **Headlines are statements, not questions.** (Exception: Q&A capability rows.)
 6. **Use names, not pronouns.** Say the product/firm/feature name, not "it."
 7. **One term per concept.** Don't paraphrase your own offer.
+8. **Write like an operator, not a marketing team.** Drop hype adjectives (seamless, robust, world-class, next-gen, game-changer, best-in-class, leverage, unlock). A real number or a named detail proves the point; an adjective just asserts it.
+9. **No throat-clearing or filler enthusiasm.** No "In today's fast-paced world," no exclamation spam. State the thing. A slide the reader believes sounds like a sharp human wrote it, not a brand-guidelines doc.
 
 ## From a markdown file or outline to a deck
 

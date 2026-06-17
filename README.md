@@ -25,7 +25,47 @@ The CLI handles the whole path:
 
 When it finishes, open Slack and DM Ekko.
 
-**Prerequisites:** Node 22+, [pnpm](https://pnpm.io/installation), the Vercel CLI (`npm i -g vercel && vercel login`), and a Slack workspace where you can install apps.
+**Prerequisites:** Node 22+, pnpm, the Vercel CLI, and a Slack workspace where you can install apps. (The CLI prompts you to sign in to Vercel during setup.)
+
+<details>
+<summary><b>Installing Node, pnpm, and the Vercel CLI</b> — copy-paste, per OS</summary>
+
+Pick your OS, then reopen your terminal and run the verify step. No `sudo` needed.
+
+**macOS**
+
+```bash
+# Only if you don't have Homebrew yet (check first: brew --version):
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+brew install node
+npm install -g pnpm vercel
+```
+
+**Windows**
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+# reopen the terminal, then:
+npm install -g pnpm vercel
+```
+
+**Linux** — pnpm installs everything (itself, Node, then the Vercel CLI):
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+# reopen the terminal, then:
+pnpm env use --global lts
+pnpm add -g vercel
+```
+
+**Verify (any OS)** — `node -v` must print **v22 or higher**:
+
+```bash
+node -v && pnpm -v && vercel --version
+```
+
+</details>
 
 Already cloned the repo and just want setup?
 

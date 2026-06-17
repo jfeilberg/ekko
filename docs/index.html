@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekko — Slack-native AI agents, deployed in minutes</title>
+<meta name="description" content="A Slack-native AI agent template. Composio + MCP + custom tools, Agent Skills that render branded PDF decks in-thread, and pgvector memory. One command to deploy.">
+<meta property="og:title" content="Ekko — Slack-native AI agents, deployed in minutes">
+<meta property="og:description" content="Composio + MCP + custom tools, Agent Skills that render branded PDF decks in-thread, pgvector memory. One command to deploy.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jfeilberg.github.io/ekko/">
+<meta property="og:image" content="https://jfeilberg.github.io/ekko/deck-sample.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ekko — Slack-native AI agents, deployed in minutes">
+<meta name="twitter:description" content="Composio + MCP + custom tools, Agent Skills that render branded PDF decks in-thread, pgvector memory.">
+<meta name="twitter:image" content="https://jfeilberg.github.io/ekko/deck-sample.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Figtree:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#fff; --surface:#f6f4f1; --surface-2:#ece9e4;
+    --fg:#1b1a16; --muted:#8c887e; --border:rgba(27,26,22,.14); --ink:#26241f;
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --sans:"Figtree",system-ui,sans-serif;
+    --mono:"Space Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--surface); color:var(--fg);
+    font-family:var(--sans); font-weight:400; line-height:1.55;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:72px 28px 56px}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:0 0 22px}
+  h1{font-family:var(--display); font-weight:700; letter-spacing:-.02em; font-size:clamp(56px,11vw,104px); line-height:.96; margin:0}
+  .tagline{font-family:var(--display); font-weight:400; letter-spacing:-.01em; font-size:clamp(20px,3.6vw,28px); margin:18px 0 0; max-width:30ch}
+  .tagline em{font-family:var(--sans); font-style:italic; color:var(--fg)}
+  .lede{font-size:17px; color:#403d37; margin:26px 0 0; max-width:62ch}
+  /* command */
+  .cmd{display:flex; align-items:center; gap:14px; margin:34px 0 0; background:var(--ink); color:#f2efe9;
+       border-radius:10px; padding:16px 18px; font-family:var(--mono); font-size:15px; overflow:auto}
+  .cmd .prompt{color:#8f897c; user-select:none}
+  .cmd code{white-space:nowrap}
+  .cmd button{margin-left:auto; flex:none; font-family:var(--mono); font-size:12px; letter-spacing:.03em; text-transform:uppercase;
+       color:#cbc6bb; background:transparent; border:1px solid rgba(255,255,255,.22); border-radius:6px; padding:6px 11px; cursor:pointer; transition:.15s}
+  .cmd button:hover{background:rgba(255,255,255,.08); color:#fff}
+  .sub{font-size:14px; color:var(--muted); margin:12px 2px 0}
+  /* features */
+  .feat{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1px; margin:48px 0 0;
+        background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden}
+  .feat>div{background:var(--surface); padding:22px 20px}
+  .feat h3{font-family:var(--display); font-weight:500; letter-spacing:-.01em; font-size:17px; margin:0 0 7px}
+  .feat p{font-size:14.5px; color:#4a473f; margin:0}
+  /* showcase */
+  .show{margin:48px 0 0}
+  .show figure{margin:0; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--paper); box-shadow:0 1px 0 rgba(27,26,22,.04)}
+  .show img{display:block; width:100%; height:auto}
+  .show figcaption{font-size:13.5px; color:var(--muted); padding:13px 16px; border-top:1px solid var(--border); font-family:var(--sans)}
+  .show figcaption b{color:var(--fg); font-weight:500}
+  /* actions */
+  .actions{display:flex; flex-wrap:wrap; gap:12px; margin:40px 0 0}
+  .btn{font-family:var(--sans); font-weight:500; font-size:15px; text-decoration:none; padding:11px 20px; border-radius:8px; transition:.15s}
+  .btn.primary{background:var(--fg); color:var(--surface)}
+  .btn.primary:hover{background:#000}
+  .btn.ghost{color:var(--fg); border:1px solid var(--border)}
+  .btn.ghost:hover{border-color:var(--fg)}
+  footer{margin:56px 0 0; padding-top:22px; border-top:1px solid var(--border); font-size:13.5px; color:var(--muted)}
+  footer a{color:#4a473f; text-decoration:none; border-bottom:1px solid var(--border)}
+  footer a:hover{color:var(--fg)}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="eyebrow">Slack-native AI agent template</p>
+    <h1>Ekko</h1>
+    <p class="tagline">AI agents for Slack. <em>Deployed in minutes.</em></p>
+
+    <p class="lede">
+      Composio's 1000+ OAuth apps, remote MCP servers, and your own custom tools — merged into one
+      surface. Packaged Agent Skills that turn a request into a branded PDF deck in the thread.
+      pgvector memory across conversations. One command from nothing to a running bot.
+    </p>
+
+    <div class="cmd">
+      <span class="prompt">$</span><code id="cmd">npx create-ekko-agent my-agent</code>
+      <button id="copy" aria-label="Copy command">Copy</button>
+    </div>
+    <p class="sub">Node 22+ · the CLI handles the Slack app, Vercel deploy, and env wiring (~3 min).</p>
+
+    <section class="feat">
+      <div>
+        <h3>Three tool layers</h3>
+        <p>Composio (Gmail, Linear, Notion, …), MCP servers, and first-class custom tools. New connections appear on the next turn — no redeploy.</p>
+      </div>
+      <div>
+        <h3>Makes decks, not just replies</h3>
+        <p>Agent Skills render on-brand decks, documents, and social cards — delivered as a PDF in the Slack thread.</p>
+      </div>
+      <div>
+        <h3>Remembers</h3>
+        <p>Postgres + pgvector embeds past conversations and recalls relevant context across threads, automatically.</p>
+      </div>
+    </section>
+
+    <section class="show">
+      <figure>
+        <img src="deck-sample.png" alt="A slide rendered by Ekko's design-system skill" width="1600" height="900">
+        <figcaption><b>Ask for a deck</b> — get a branded, self-contained artifact that previews inline and exports to PDF.</figcaption>
+      </figure>
+    </section>
+
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/jfeilberg/ekko">View on GitHub</a>
+      <a class="btn ghost" href="https://www.npmjs.com/package/create-ekko-agent">npm</a>
+    </div>
+
+    <footer>
+      MIT licensed. Built on Vercel's Chat SDK + AI SDK v6, Composio, and the open Agent Skills standard.
+    </footer>
+  </main>
+
+  <script>
+    const b = document.getElementById('copy');
+    b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText('npx create-ekko-agent my-agent'); b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy', 1600); }
+      catch { b.textContent = 'Copy failed'; }
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPersona, persona } from './persona';
+import { getPersona, persona } from '@/agent/persona';
 
 describe('getPersona', () => {
   it('renders identity, voice, and the current date', () => {

@@ -4,6 +4,30 @@ All notable changes to Ekko (and the `create-ekko-agent` scaffolding CLI) are re
 
 The format follows [Keep a Changelog](https://keepachangelog.com/), and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased] — agent/ directory restructure
+
+**Breaking change for existing forks.** All fork-owned customisation has moved into a top-level `agent/` directory, auto-discovered at build time by `pnpm agent:build` (renamed from `skills:build`; still runs automatically on `dev`/`build`/`test`/`typecheck`).
+
+### What changed
+
+- **`agent/tools/<name>.ts`** — custom tools. Drop a file; the filename is the model-facing tool name. `export default` a `tool()` (from `ai`), optionally wrapped in `withStatusLabel(...)` from the new `ekko` import alias. No barrel (`index.ts`) needed — everything in the folder is auto-discovered.
+- **`agent/connections/<name>.ts`** — remote MCP servers. One file per server; the filename becomes the tool prefix (`acme.ts` → `acme_<tool>`). `export default defineConnection({ type: 'mcp', url, authorization })`. Replaces the old single `lib/tools/custom/mcp-servers.ts`.
+- **`agent/skills/<name>/SKILL.md`** — skills. Moved from `lib/skills/catalog/`. Same `SKILL.md` standard; run `pnpm agent:build` after editing.
+- **`agent/persona.ts`** — assistant personality and voice. Moved from `lib/agent/persona.ts`.
+- **`agent/instructions.md`** — optional freeform prompt text appended as an extra persona layer below the framework's safety/formatting rules.
+- **`agent/agent.ts`** — model and maxSteps defaults via `defineAgent({ persona, model, maxSteps })`. Env vars `LLM_MODEL` and `MAX_AGENT_STEPS` still override at runtime.
+- **`agent/sandbox.ts`** — Vercel Sandbox setup commands via `defineSandbox({ runtime, setup })`.
+- **`ekko` import alias** (`lib/framework/`) exposes `defineAgent`, `defineConnection`, `defineSandbox`, `withStatusLabel`, and their types. Use it in all `agent/` files instead of deep `lib/` imports.
+- `lib/agent/suggested-prompts.ts` is now fully upstream-owned (no longer a fork customisation point).
+
+### Migrating an existing fork
+
+1. **Custom tools** — move each file from `lib/tools/custom/` to `agent/tools/`. Change `export const myTool = withStatusLabel(...)` to `export default withStatusLabel(...)`. Change `import { withStatusLabel } from '../registry'` to `import { withStatusLabel } from 'ekko'`. Delete `lib/tools/custom/index.ts`.
+2. **MCP servers** — for each entry in `lib/tools/custom/mcp-servers.ts`, create `agent/connections/<name>.ts` with `export default defineConnection({ type: 'mcp', url, authorization })` (from `ekko`). Delete `lib/tools/custom/mcp-servers.ts`.
+3. **Skills** — move `lib/skills/catalog/<name>/` directories to `agent/skills/<name>/`. Content is unchanged.
+4. **Persona** — move `lib/agent/persona.ts` to `agent/persona.ts`. Change any deep `lib/` imports to `import type { Persona, TonePreset } from 'ekko'`.
+5. Run `pnpm agent:build` (replaces `pnpm skills:build`) to regenerate `lib/**/*.generated.ts`.
+
 ## [0.2.6] — 2026-06-16
 
 Fixes two regressions/issues surfaced live after 0.2.5.

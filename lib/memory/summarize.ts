@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
-import { env } from '../env';
+import { resolveAgentConfig } from '../agent/config';
 import { db } from '../db';
 
 const COMPACT_THRESHOLD = 40;
@@ -18,6 +18,9 @@ export async function compactOldMessages(): Promise<{ threadsCompacted: number; 
 
   let threadsCompacted = 0;
   let messagesSummarized = 0;
+
+  // Resolve the summarization model once — config doesn't change mid-run.
+  const summaryModel = resolveAgentConfig().model;
 
   for (const { slack_user_id: slackUserId, thread_ts: threadTs } of groups) {
     const lastRows = await sql<{ covered_through_id: number }[]>`
@@ -42,7 +45,7 @@ export async function compactOldMessages(): Promise<{ threadsCompacted: number; 
     const transcript = batch.map((r) => `${r.role}: ${r.content}`).join('\n');
 
     const { text: summary } = await generateText({
-      model: gateway(env().LLM_MODEL),
+      model: gateway(summaryModel),
       prompt: `Summarize the following Slack agent conversation succinctly. Keep decisions, facts, and unresolved questions. 5-10 bullet points.\n\n${transcript}`,
     });
 

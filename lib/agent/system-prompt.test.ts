@@ -15,6 +15,21 @@ const CTX = {
   toolNames: [] as string[],
 };
 
+describe('getSystemPrompt instructions layer', () => {
+  it('appends instructions inside the persona block', () => {
+    const out = getSystemPrompt({
+      slackUserId: 'U1', teamId: 'T1', channelId: 'C1',
+      currentDate: '2026-06-17', toolNames: [], instructions: 'Always sign off as Bot.',
+    });
+    expect(out).toContain('Always sign off as Bot.');
+    const personaOpen = out.indexOf('<persona>');
+    const personaClose = out.indexOf('</persona>');
+    const idx = out.indexOf('Always sign off as Bot.');
+    expect(idx).toBeGreaterThan(personaOpen);
+    expect(idx).toBeLessThan(personaClose);
+  });
+});
+
 describe('getSystemPrompt', () => {
   it('instructs standard Markdown (the streaming render path), not legacy mrkdwn', () => {
     const p = getSystemPrompt(CTX);

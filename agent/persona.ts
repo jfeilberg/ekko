@@ -14,34 +14,18 @@
  * to identity, voice, and focus — it should never try to override those rules.
  */
 
+import type { Persona, TonePreset } from 'ekko';
+
 export type PersonaContext = {
   slackUserId: string;
   currentDate: string;
 };
-
-/** Named tone presets so you can set a voice without writing prose. */
-export type TonePreset = 'concise' | 'warm' | 'executive' | 'playful';
 
 const TONE_PRESETS: Record<TonePreset, string> = {
   concise: 'Direct and efficient. Short, scannable answers. No filler or preamble.',
   warm: 'Friendly and encouraging. Conversational, with a human touch — still concise.',
   executive: 'Crisp and decision-oriented. Lead with the answer, then the why. Bullet over prose.',
   playful: 'Light and personable, with the occasional bit of wit — never at the cost of clarity.',
-};
-
-export type Persona = {
-  /** What the assistant is called. */
-  name: string;
-  /** One-line role/identity. */
-  role: string;
-  /** Pick a tone preset, or set `customTone` for full control. */
-  tone: TonePreset;
-  /** Optional free-text tone that overrides the preset when set. */
-  customTone?: string;
-  /** Short personality traits. */
-  traits: string[];
-  /** What the assistant should focus on / be good at. */
-  focus: string[];
 };
 
 /**

@@ -14,23 +14,17 @@ const schema = z.object({
   DATABASE_URL: z.string().url().describe('Postgres connection string (Neon recommended; works with Supabase, local, etc.)'),
   AI_GATEWAY_API_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
-  // Default to a model the Vercel AI Gateway free tier allows so a fresh
-  // `npx create-ekko-agent` install responds on the first message without the
-  // user adding paid credits. Opus / Sonnet are paid-tier on AI Gateway and
-  // return 403 with no credit — easy to upgrade to once the user has billing.
-  // Vercel AI Gateway uses dot-separated versions (e.g. `claude-opus-4.8`),
-  // NOT the hyphen form Anthropic's direct API uses (`claude-opus-4-8`).
-  LLM_MODEL: z.string().default('anthropic/claude-haiku-4.5'),
+  LLM_MODEL: z.string().optional(),
   EMBEDDING_MODEL: z.string().default('openai/text-embedding-3-small'),
   SYSTEM_PROMPT_OVERRIDE: z.string().optional(),
   ALLOW_CROSS_CHANNEL_POST: toBool,
-  MAX_AGENT_STEPS: z.coerce.number().int().positive().default(16),
+  MAX_AGENT_STEPS: z.coerce.number().int().positive().optional(),
   REDIS_URL: z.string().optional(),
   EKKO_ACCESS_MODE: z.enum(['open', 'allowlist']).default('open'),
   EKKO_ALLOWED_USERS: toList,
   EKKO_ALLOWED_CHANNELS: toList,
   // Optional opt-out filter for bundled skills. Empty/unset = all catalog
-  // skills in lib/skills/catalog/ are available. Set to a comma-separated list
+  // skills in agent/skills/ are available. Set to a comma-separated list
   // of skill names to restrict which ones the agent can use.
   EKKO_ENABLED_SKILLS: toList,
   // Max number of `always`/`keyword`-triggered skill bodies auto-injected into

@@ -11,7 +11,6 @@ describe('loadEnv', () => {
   it('parses a valid env object', () => {
     const env = loadEnv(REQUIRED);
     expect(env.SLACK_BOT_TOKEN).toBe('xoxb-test');
-    expect(env.LLM_MODEL).toBe('anthropic/claude-haiku-4.5');
     expect(env.COMPOSIO_ENABLED_TOOLKITS).toEqual([]);
     expect(env.ALLOW_CROSS_CHANNEL_POST).toBe(false);
   });
@@ -31,8 +30,9 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...REQUIRED, ALLOW_CROSS_CHANNEL_POST: 'false' }).ALLOW_CROSS_CHANNEL_POST).toBe(false);
   });
 
-  it('defaults MAX_AGENT_STEPS to 16', () => {
-    const env = loadEnv(REQUIRED);
-    expect(env.MAX_AGENT_STEPS).toBe(16);
+  it('leaves LLM_MODEL/MAX_AGENT_STEPS undefined when unset', () => {
+    const e = loadEnv({ SLACK_BOT_TOKEN: 'x', SLACK_SIGNING_SECRET: 'y', DATABASE_URL: 'postgresql://test' });
+    expect(e.LLM_MODEL).toBeUndefined();
+    expect(e.MAX_AGENT_STEPS).toBeUndefined();
   });
 });

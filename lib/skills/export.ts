@@ -5,6 +5,7 @@ import { env } from '../env';
 import { log } from '../log';
 import { bundleArtifact } from './artifact';
 import { getSnapshotId, setSnapshotId, clearSnapshotId } from './snapshot';
+import { getSandboxSetup } from '../agent/sandbox-config';
 
 // Minimal shape of the live Chat SDK thread (post a message with file uploads).
 // Defined locally rather than imported from ./tools to avoid a circular import.
@@ -69,30 +70,11 @@ try {
 const BROWSERS_PATH = '/vercel/sandbox/.playwright';
 const SANDBOX_TIMEOUT_MS = 5 * 60 * 1000;
 
-// Chromium's runtime shared libraries (NSPR/NSS, X libs, fontconfig deps, …).
-// The Vercel Sandbox runs Amazon Linux 2023, which Playwright's own
-// `install --with-deps` does NOT support (it only knows apt-get, so it exits
-// 127 and the browser fails to launch with "libnspr4.so: cannot open shared
-// object file"). We install the libs ourselves via dnf as passwordless root.
-const CHROMIUM_LIBS = [
-  'nss', 'nspr', 'atk', 'at-spi2-atk', 'at-spi2-core', 'cups-libs', 'libdrm',
-  'libxkbcommon', 'libXcomposite', 'libXdamage', 'libXext', 'libXfixes',
-  'libXrandr', 'mesa-libgbm', 'pango', 'cairo', 'alsa-lib', 'libX11', 'libxcb',
-  'libXrender',
-];
-
 type SandboxModule = typeof import('@vercel/sandbox');
 type SandboxInstance = Awaited<ReturnType<SandboxModule['Sandbox']['create']>>;
 
 async function installPlaywright(sandbox: SandboxInstance): Promise<void> {
-  const steps: [string, string[]][] = [
-    ['npm', ['init', '-y']],
-    ['npm', ['install', 'playwright-core']],
-    ['npx', ['--yes', 'playwright', 'install', 'chromium-headless-shell']],
-    // Install Chromium's system libraries (dnf, not Playwright's apt-only deps).
-    ['sudo', ['dnf', 'install', '-y', ...CHROMIUM_LIBS]],
-  ];
-  for (const [cmd, args] of steps) {
+  for (const [cmd, args] of getSandboxSetup()) {
     const r = await sandbox.runCommand(cmd, args);
     if (r.exitCode !== 0) {
       throw new Error(`sandbox setup failed (${cmd} ${args.join(' ')}): ${await r.stderr()}`);

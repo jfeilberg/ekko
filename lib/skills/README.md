@@ -21,9 +21,9 @@ opencode, and other adopters.
 
 ## Adding a skill
 
-1. Create `lib/skills/catalog/<your-skill>/SKILL.md`. The directory name must
+1. Create `agent/skills/<your-skill>/SKILL.md`. The directory name must
    match the frontmatter `name`.
-2. Run `pnpm skills:build` to compile the catalog into the generated modules
+2. Run `pnpm agent:build` to compile the catalog into the generated modules
    (`catalog.generated.ts` + `resources.generated.ts`). These are gitignored and
    regenerated automatically on `pnpm dev`, `build`, `test`, and `typecheck`, so
    they never drift from the `SKILL.md` sources.

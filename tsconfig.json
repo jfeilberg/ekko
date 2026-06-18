@@ -28,6 +28,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "ekko": [
+        "./lib/framework/index.ts"
       ]
     },
     "allowJs": true

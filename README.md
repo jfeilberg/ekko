@@ -75,7 +75,7 @@ pnpm install && pnpm bootstrap
 
 ## What you get
 
-- **Three tool layers, one surface.** [Composio](https://composio.dev) Tool Router (1000+ OAuth apps — Gmail, Linear, Notion, …) brokered per Slack user; remote **MCP servers** you list in a single file; and **custom tools** as a first-class extension point. Newly connected Composio toolkits appear on the next turn — no env var, no redeploy.
+- **Three tool layers, one surface.** [Composio](https://composio.dev) Tool Router (1000+ OAuth apps — Gmail, Linear, Notion, …) brokered per Slack user; remote **MCP servers** (one file each in `agent/connections/`); and **custom tools** as a first-class extension point. Newly connected Composio toolkits appear on the next turn — no env var, no redeploy.
 - **Agent Skills.** Packaged, on-demand task instructions following the open `SKILL.md` standard, with progressive disclosure (L1 metadata always in the prompt, L2 body loaded on demand, L3 bundled assets). Ships with three: `design-system` (turn notes into a branded deck / A4 document / social card, rendered server-side to a **PDF** in the thread), `email-triage`, and `meeting-notes`.
 - **Long-term memory.** Postgres + pgvector embeds past conversations and recalls relevant context across threads automatically. Recent thread history comes straight from Slack.
 - **Streaming with live progress.** Replies stream into Slack as Markdown; a collapsible task card shows the tool/reasoning chain as it runs.
@@ -86,10 +86,12 @@ pnpm install && pnpm bootstrap
 - `app/api/webhooks/[platform]/route.ts` — thin webhook that delegates to the Chat SDK (signature verification, URL verification, the 3s ack, and retries are handled for you).
 - `lib/bot.ts` — the `Chat` instance and Slack event handlers (mentions, follow-ups, slash, assistant-thread).
 - `lib/agent/run-turn.ts` — the turn loop: load tools + context, run the AI SDK `ToolLoopAgent`, stream into the thread, persist, emit progress.
-- `lib/agent/{persona,system-prompt}.ts` — `persona.ts` is the forker-owned voice; `system-prompt.ts` owns the framework rules.
-- `lib/tools/` — `composio` + `mcp` + `custom` + `builtin`, merged in `registry.ts`.
-- `lib/skills/` — the Agent Skills runtime; author skills in `catalog/<name>/SKILL.md`, compile with `pnpm skills:build`.
+- `lib/agent/system-prompt.ts` — framework rules (formatting, disclaimer, tool-use guidance). Upstream-owned.
+- `lib/tools/` — `composio` + `mcp` + `custom` (auto-discovered from `agent/tools/` + `agent/connections/`) + `builtin`, merged in `registry.ts`.
+- `lib/skills/` — the Agent Skills runtime; skills are authored in `agent/skills/<name>/SKILL.md`, compiled with `pnpm agent:build`.
+- `lib/framework/` — the `ekko` import alias: `defineAgent`, `defineConnection`, `defineSandbox`, `withStatusLabel`.
 - `lib/memory/` — pgvector recall. `lib/db.ts` — one `DATABASE_URL`, any Postgres.
+- `agent/` — **fork-owned extension directory** (auto-discovered at build time). `tools/`, `connections/`, `skills/` subfolders; `agent.ts`, `persona.ts`, `instructions.md`, `sandbox.ts` at the top level.
 
 Stack: Next.js (App Router) · TypeScript strict · Vercel AI SDK v6 + AI Gateway · `@slack/web-api` · `@composio/core` · MCP SDK · Postgres/pgvector · pnpm. See **[`CLAUDE.md`](CLAUDE.md)** for the full architecture map and a "where to make changes" index — it's written for AI coding assistants and humans alike.
 
@@ -122,15 +124,15 @@ See [`.env.example`](.env.example) for the full list.
 
 ### Custom tools
 
-Drop a file in `lib/tools/custom/`:
+Drop a file in `agent/tools/`. The filename — which must be `snake_case` (`[a-z0-9_]+`) — is the model-facing tool name. No barrel or registration needed: `pnpm agent:build` (which runs automatically on `dev`/`build`/`test`/`typecheck`) auto-discovers everything in the folder.
 
 ```ts
-// lib/tools/custom/sku-lookup.ts
+// agent/tools/sku_lookup.ts   → tool name "sku_lookup"
 import { tool } from 'ai';
 import { z } from 'zod';
-import { withStatusLabel } from '../registry';
+import { withStatusLabel } from 'ekko';
 
-export const skuLookup = withStatusLabel(
+export default withStatusLabel(
   tool({
     description: 'Look up internal product SKUs by name.',
     inputSchema: z.object({ name: z.string() }),
@@ -144,29 +146,22 @@ export const skuLookup = withStatusLabel(
 );
 ```
 
-Register it in `lib/tools/custom/index.ts`:
-
-```ts
-import { skuLookup } from './sku-lookup';
-export const customTools = { skuLookup };
-```
-
 Available to the agent on the next deploy. (Delete the bundled `example.ts` once you have your own.)
 
 ### Remote MCP servers
 
-Edit `lib/tools/custom/mcp-servers.ts`:
+Create one file per server in `agent/connections/`. The filename becomes the tool prefix (`mycompany.ts` → `mycompany_search`, …). Auto-discovered; no other registration needed.
 
 ```ts
-export const mcpServers: Record<string, MCPServerConfig> = {
-  mycompany: {
-    url: 'https://mcp.mycompany.com',
-    authorization: () => `Bearer ${process.env.MYCOMPANY_TOKEN ?? ''}`,
-  },
-};
-```
+// agent/connections/mycompany.ts
+import { defineConnection } from 'ekko';
 
-Tools auto-prefix with the server name (`mycompany_search`, …) and appear in the agent's tool surface.
+export default defineConnection({
+  type: 'mcp',
+  url: 'https://mcp.mycompany.com',
+  authorization: () => `Bearer ${process.env.MYCOMPANY_TOKEN ?? ''}`,
+});
+```
 
 ### Composio toolkits
 
@@ -174,11 +169,13 @@ Connect any Composio-supported service via the [dashboard](https://dashboard.com
 
 ### Skills
 
-Create `lib/skills/catalog/<name>/SKILL.md` (the directory name must match the frontmatter `name`), then run `pnpm skills:build`. L1 metadata is always in the prompt; the model pulls the full body on demand via the `load_skill` tool. See `lib/skills/README.md`.
+Create `agent/skills/<name>/SKILL.md` (the directory name must match the frontmatter `name`), then run `pnpm agent:build`. L1 metadata is always in the prompt; the model pulls the full body on demand via the `load_skill` tool. See `lib/skills/README.md`.
 
-### Persona & system prompt
+### Persona, voice, and model
 
-Edit `lib/agent/persona.ts` — name, voice, and task focus live there. The formatting / disclaimer / tool rules are framework-owned in `lib/agent/system-prompt.ts`. For quick experiments, set `SYSTEM_PROMPT_OVERRIDE`.
+Edit `agent/persona.ts` — name, voice, and task focus live there. The formatting / disclaimer / tool rules are framework-owned in `lib/agent/system-prompt.ts`. For freeform additions to the prompt (below the framework rules), edit `agent/instructions.md`. For quick whole-prompt experiments, set `SYSTEM_PROMPT_OVERRIDE`.
+
+The model and `maxSteps` defaults are set in `agent/agent.ts` via `defineAgent({ persona, model, maxSteps })`. The `LLM_MODEL` and `MAX_AGENT_STEPS` env vars override them at runtime.
 
 ## Slack access: what the bot sees vs. what you see
 
@@ -200,7 +197,7 @@ Conversation history is persisted to Postgres (`messages` table) with pgvector e
 
 ## Forking for personal use
 
-This template is built to be forked: maintain your fork, deploy it to your Slack, and pull upstream improvements over time. The customization points (`lib/tools/custom/`, `lib/skills/catalog/`, `lib/agent/persona.ts`) are designed not to conflict on `git merge upstream/main`. To enable automatic weekly sync PRs, set the `UPSTREAM_REPO` repo variable on your fork; `.github/workflows/sync-upstream.yml` handles the rest. See [`CLAUDE.md`](CLAUDE.md) for the extension-point discipline.
+This template is built to be forked: maintain your fork, deploy it to your Slack, and pull upstream improvements over time. Everything under `agent/` (`tools/`, `connections/`, `skills/`, `agent.ts`, `persona.ts`, `instructions.md`, `sandbox.ts`) is fork-owned and designed not to conflict on `git merge upstream/main`. To enable automatic weekly sync PRs, set the `UPSTREAM_REPO` repo variable on your fork; `.github/workflows/sync-upstream.yml` handles the rest. See [`CLAUDE.md`](CLAUDE.md) for the full extension-point discipline.
 
 ## License
 

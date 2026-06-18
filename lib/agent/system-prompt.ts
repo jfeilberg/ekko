@@ -1,5 +1,5 @@
 import { env } from '../env';
-import { getPersona } from './persona';
+import { getPersona } from '@/agent/persona';
 
 export type PromptContext = {
   slackUserId: string;
@@ -11,6 +11,8 @@ export type PromptContext = {
   skillCatalog?: { name: string; description: string }[];
   /** L2 bodies for skills pre-activated this turn (always/keyword triggers). */
   activeSkills?: { name: string; body: string }[];
+  /** Extra persona text from agent/instructions.md, appended inside the persona block. */
+  instructions?: string;
 };
 
 // Baseline voice for every fork. Identity/personality belongs in the
@@ -100,12 +102,15 @@ export function getSystemPrompt(ctx: PromptContext): string {
   if (override) return override;
 
   const persona = getPersona({ slackUserId: ctx.slackUserId, currentDate: ctx.currentDate });
+  const personaBlock = ctx.instructions
+    ? `<persona>\n${persona}\n\n${ctx.instructions}\n</persona>`
+    : `<persona>\n${persona}\n</persona>`;
 
   // Framework-owned rules sit ABOVE the (lower-trust, owner-editable) persona.
   // The persona is wrapped in a delimiter so it can't bleed into / override the
   // formatting, disclaimer, and tool rules.
   const layers: string[] = [
-    `<persona>\n${persona}\n</persona>`,
+    personaBlock,
     VOICE_RULES,
     FORMATTING_RULES,
     DISCLAIMER_RULE,

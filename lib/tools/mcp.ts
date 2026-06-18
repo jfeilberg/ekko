@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { jsonSchema, dynamicTool } from 'ai';
 import type { Tool } from 'ai';
-import { mcpServers } from './custom/mcp-servers';
+import { connections } from './connections.generated';
 import { withStatusLabel } from './registry';
 import { log } from '../log';
 
@@ -15,7 +15,8 @@ export async function getMcpToolset(): Promise<MCPToolset> {
   const clients: Array<Client> = [];
   const tools: Record<string, Tool> = {};
 
-  for (const [serverName, cfg] of Object.entries(mcpServers)) {
+  for (const [serverName, cfg] of Object.entries(connections)) {
+    if (cfg.type !== 'mcp') continue;
     try {
       const headers: Record<string, string> = {};
       if (cfg.authorization) headers['Authorization'] = cfg.authorization();

@@ -1,15 +1,15 @@
 import { ToolLoopAgent, stepCountIs, type ModelMessage, type Tool, type ToolSet } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import type { Thread } from 'chat';
-import { toAiMessages, Plan } from 'chat';
-import { env } from '../env';
+import { toAiMessages } from 'chat';
 import { log } from '../log';
+import { resolveAgentConfig } from './config';
 import { getSystemPrompt } from './system-prompt';
 import { loadContext, assembleMessages } from './context';
 import { ensureSlackUser, recordMessage } from '../memory/store';
 import { getComposioTools } from '../tools/composio';
 import { builtinTools } from '../tools/builtin';
-import { customTools } from '../tools/custom';
+import { customTools } from '../tools/custom.generated';
 import { getMcpToolset } from '../tools/mcp';
 import { mergeTools } from '../tools/registry';
 import { getAvailableSkills, getAutoActiveSkills } from '../skills/loader';
@@ -29,6 +29,7 @@ export type TurnInput = {
 export async function runTurn(input: TurnInput): Promise<void> {
   const t0 = Date.now();
   const { thread, slackUserId, teamId, channelId, userText, surface } = input;
+  const agentCfg = resolveAgentConfig();
 
   // Resolve Composio entity id (best-effort).
   let entityId = `slack:${teamId}:${slackUserId}`;
@@ -54,11 +55,6 @@ export async function runTurn(input: TurnInput): Promise<void> {
   });
 
   try {
-    // Surface Slack's native typing indicator while context loads + agent runs.
-    // Slack stops it automatically when the next message posts; for the longer
-    // streaming flows we re-trigger it just before the stream below.
-    await thread.startTyping('Thinking…').catch(() => {});
-
     const [recallContext, composio, threadFetch] = await Promise.all([
       loadContext({ slackUserId, threadTs: thread.id, currentUserText: userText }).catch(() => ({
         summaries: [],
@@ -82,21 +78,13 @@ export async function runTurn(input: TurnInput): Promise<void> {
       'turn.tools',
     );
 
-    // --- Plan: in-bubble task cards ---
-    // Post a Plan before the agent runs so the user sees progress immediately.
-    // This collapsible card (Thinking… → tool steps → Done) is the working
-    // indicator; the answer streams as a separate message below it.
-    const plan = new Plan({ initialMessage: 'Thinking…' });
-    await thread.post(plan).catch((err) => {
-      log.warn({ err }, 'plan_post_failed');
-    });
-
-    // Wrap each tool to emit Plan task updates while it executes.
+    // Lightweight per-tool latency logging only. No Slack status/cards/streaming,
+    // so the turn produces exactly one clean message: the final answer, posted as
+    // plain text below once the tool loop completes.
     const wrappedTools: ToolSet = {};
     for (const [name, tool] of Object.entries(tools)) {
       type ToolWithExecute = Tool & {
         execute?: (input: unknown, options: unknown) => Promise<unknown>;
-        experimental_meta?: { slackStatusLabel?: string };
       };
       const t = tool as ToolWithExecute;
       const originalExecute = t.execute;
@@ -104,34 +92,15 @@ export async function runTurn(input: TurnInput): Promise<void> {
         wrappedTools[name] = tool as ToolSet[string];
         continue;
       }
-      const label = t.experimental_meta?.slackStatusLabel ?? `Calling ${name}…`;
       wrappedTools[name] = {
         ...tool,
         execute: async (input: unknown, options: unknown) => {
-          // addTask() returns a PlanTask with an id; capture it for updateTask.
-          let taskId: string | undefined;
-          try {
-            const task = await plan.addTask({ title: label });
-            taskId = task?.id;
-          } catch {
-            /* tolerate — plan may not be bound yet */
-          }
           const t0 = Date.now();
           try {
             const result = await originalExecute(input, options);
-            try {
-              await plan.updateTask({ id: taskId, status: 'complete' });
-            } catch {
-              /* best effort */
-            }
             log.info({ tool: name, ok: true, latencyMs: Date.now() - t0 }, 'tool_call');
             return result;
           } catch (err) {
-            try {
-              await plan.updateTask({ id: taskId, status: 'error' });
-            } catch {
-              /* best effort */
-            }
             log.warn({ tool: name, err, latencyMs: Date.now() - t0 }, 'tool_call_failed');
             throw err;
           }
@@ -205,13 +174,14 @@ export async function runTurn(input: TurnInput): Promise<void> {
       toolNames: Object.keys(tools),
       skillCatalog: getAvailableSkills().map((s) => ({ name: s.name, description: s.description })),
       activeSkills: getAutoActiveSkills(userText).map((s) => ({ name: s.name, body: s.body })),
+      instructions: agentCfg.instructions,
     });
 
     const agent = new ToolLoopAgent({
-      model: gateway(env().LLM_MODEL),
+      model: gateway(agentCfg.model),
       instructions: systemPrompt,
       tools: wrappedTools,
-      stopWhen: stepCountIs(env().MAX_AGENT_STEPS),
+      stopWhen: stepCountIs(agentCfg.maxSteps),
       experimental_context: {
         slackUserId,
         teamId,
@@ -228,21 +198,13 @@ export async function runTurn(input: TurnInput): Promise<void> {
     });
 
     const result = await agent.stream({ messages });
-    // Re-trigger typing right before streaming so the indicator persists
-    // through the model's first-token latency.
+    // Chat-SDK-blessed streaming: `textStream` carries ONLY the answer text — no
+    // tool-call / step events — so the reply streams into one clean bubble with
+    // no "(complete) …" step leakage. The typing status gives the working shimmer
+    // until the first token arrives.
     await thread.startTyping('Thinking…').catch(() => {});
-    // `fullStream` preserves step boundaries (text-delta, tool-call, tool-result,
-    // step-start/finish) so the Slack adapter renders multi-tool runs with
-    // proper separators instead of one mashed-together stream.
-    await thread.post(result.fullStream);
+    await thread.post(result.textStream);
     const finalText = await result.text;
-
-    // Mark the plan complete once the response is streamed.
-    try {
-      await plan.complete({ completeMessage: 'Done' });
-    } catch {
-      /* best effort */
-    }
 
     recordMessage({
       slackUserId,
